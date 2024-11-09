@@ -165,5 +165,4 @@ cython_debug/
 document_preprocessor.py
 indexing.py
 ranker.py
-/files_to_annotate
 /main_index

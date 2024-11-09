@@ -139,16 +139,75 @@ fashion_queries = ["Maxi dress",
 "Kids’ winter coat waterproof",
 ]
 
-for beauty_query in beauty_queries:
-    doc_lst = ranker.query(beauty_query)[:N_DOC_NEEDED]
-    df = pd.DataFrame(columns=['query','title','docid','link','rel'])
-    for i in range(len(doc_lst)):
-        df.loc[i] = [beauty_query, docid_to_title[doc_lst[i][0]], doc_lst[i][0], docid_to_link[doc_lst[i][0]], None]
-    df.to_csv(beauty_query+'.csv', index=False)
+def check_amazon_item_exists(url):
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+    response = requests.get(url, headers=headers)
 
-for fashion_query in fashion_queries:
-    doc_lst = ranker.query(fashion_query)[:N_DOC_NEEDED]
-    df = pd.DataFrame(columns=['query','title','docid','link','rel'])
+    # Check if the page exists based on the HTTP status code
+    if response.status_code == 200:
+        if "currently unavailable" in response.text or "couldn't find that page" in response.text:
+            return False
+        else:
+            return True
+    elif response.status_code == 404:
+        return False
+    else:
+        return False
+
+# for beauty_query in beauty_queries:
+#     doc_lst = ranker.query(beauty_query)[:N_DOC_NEEDED]
+#     df = pd.DataFrame(columns=['query','title','docid','link','rel'])
+#     for i in range(len(doc_lst)):
+#         df.loc[i] = [beauty_query, docid_to_title[doc_lst[i][0]], doc_lst[i][0], docid_to_link[doc_lst[i][0]], None]
+#     df.to_csv(beauty_query+'.csv', index=False)
+    
+for beauty_query in beauty_queries:
+    doc_lst = ranker.query(beauty_query)
+    df = pd.DataFrame(columns=['query', 'title', 'docid', 'link', 'rel'])
+
+    valid_docs_count = 0
     for i in range(len(doc_lst)):
-        df.loc[i] = [fashion_query, docid_to_title[doc_lst[i][0]], doc_lst[i][0], docid_to_link[doc_lst[i][0]], None]
-    df.to_csv(fashion_query+'.csv', index=False)
+        docid = doc_lst[i][0]
+        url = docid_to_link[docid]
+        
+        # Check if the URL is valid
+        if check_amazon_item_exists(url):
+            # Add the document to the DataFrame if URL is valid
+            df.loc[valid_docs_count] = [beauty_query, docid_to_title[docid], docid, url, None]
+            valid_docs_count += 1
+            
+            # Stop if we reach the required number of valid docs
+            if valid_docs_count >= N_DOC_NEEDED:
+                break
+
+    # Save to CSV after collecting enough valid documents
+    df.to_csv(f"{beauty_query}.csv", index=False)
+
+# for fashion_query in fashion_queries:
+#     doc_lst = ranker.query(fashion_query)[:N_DOC_NEEDED]
+#     df = pd.DataFrame(columns=['query','title','docid','link','rel'])
+#     for i in range(len(doc_lst)):
+#         df.loc[i] = [fashion_query, docid_to_title[doc_lst[i][0]], doc_lst[i][0], docid_to_link[doc_lst[i][0]], None]
+#     df.to_csv(fashion_query+'.csv', index=False)
+    
+for fashion_query in fashion_queries:
+    doc_lst = ranker.query(fashion_query)
+    df = pd.DataFrame(columns=['query', 'title', 'docid', 'link', 'rel'])
+
+    valid_docs_count = 0
+    for i in range(len(doc_lst)):
+        docid = doc_lst[i][0]
+        url = docid_to_link[docid]
+        
+        # Check if the URL is valid
+        if check_amazon_item_exists(url):
+            # Add the document to the DataFrame if URL is valid
+            df.loc[valid_docs_count] = [fashion_query, docid_to_title[docid], docid, url, None]
+            valid_docs_count += 1
+            
+            # Stop if we reach the required number of valid docs
+            if valid_docs_count >= N_DOC_NEEDED:
+                break
+
+    # Save to CSV after collecting enough valid documents
+    df.to_csv(f"{fashion_query}.csv", index=False)
