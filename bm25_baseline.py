@@ -110,6 +110,16 @@ beauty_queries = ["Matte pink lipstick",
 "Gentle facial cleanser with natural ingredients",
 "Long-lasting waterproof mascara",
 "Shampoo and conditioner set for curly hair",
+"Face lotion with sunscreen",
+"Face sheet mask",
+"Makeup remover wipes",
+"Liquid eyeliner",
+"Plumping lip gloss",
+"Nail polish",
+"Body spray",
+"Setting spray",
+"Deodorant for sensitive skin",
+"Makeup brush set"
 ]
 
 fashion_queries = ["Leg warmers",
@@ -132,6 +142,16 @@ fashion_queries = ["Leg warmers",
 "High-waisted leggings with pockets",
 "Casual blazer for men in slim fit style",
 "Kids’ winter coat waterproof",
+"Womens skinny jeans",
+"Womens sweaters warm",
+"Lightweight jacket for men",
+"Hiking boots for women",
+"Gloves for women",
+"Kids t-shirts",
+"Womens crop top",
+"Cardigan sweater with pockets",
+"Sundress",
+"Swim trunks"
 ]
 
 eco_ranker = Ranker(eco_index, tokenizer, stopwords, BM25(eco_index))
