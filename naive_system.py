@@ -198,12 +198,17 @@ fashion_queries = ["handmade recycled purse"
 def evaluate_ranker(ranker, queries):
     for query in queries:
         print(f'Running query: {query}')
-        doc_scores = ranker.query(query)
-        if len(doc_scores) < 10:
-            print(f'This query does not have enough docs: {query}')
-        print(f'Top documents and scores:')
-        for doc_id, score in doc_scores[:10]:
-            print(f'DocID: {doc_id}, Score: {score:.4f}')
+        # Get BM25 scores with fallback to naive ranking
+        bm25_doc_scores = ranker.query(query)
+        # Run naive ranking independently
+        query_tokens = ranker.tokenize(query)
+        naive_doc_scores = ranker.naive_rank(query_tokens)
+        # Format BM25 and naive scores for comparison
+        print(f'Top documents and scores (BM25 with Naive Fallback):')
+        # Iterate through BM25 results and print the naive fallback score if available
+        for doc_id, bm25_score in bm25_doc_scores[:10]:
+            naive_score = naive_doc_scores.get(doc_id, 0)  # Fallback to 0 if doc_id not in naive scores
+            print(f'DocID: {doc_id}, BM25 Score: {bm25_score:.4f}, Naive Score: {naive_score}')
         print('---')
 
 # Run evaluations
