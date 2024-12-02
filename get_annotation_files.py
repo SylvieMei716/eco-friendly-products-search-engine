@@ -12,6 +12,9 @@ from indexing import Indexer, IndexType, BasicInvertedIndex
 from ranker import *
 import pickle
 import pandas as pd
+import requests
+import time
+import random
 
 
 DATA_PATH = 'data/'  # TODO: Set this to the path to your data folder
@@ -34,33 +37,6 @@ with open(STOPWORD_PATH, 'r') as f:
         stopwords.add(line.strip())
         
 print('Loaded', len(stopwords), 'stopwords.')
-
-# Load two categories' items into one dataset (running time: 30s)
-item_cnt = 0
-keys_to_keep = ["main_category", "title", "average_rating", "rating_number", "price", "images", "details"]
-
-def process_dataset(input_path, output_file, item_cnt):
-    with gzip.open(input_path, 'rt') as infile:
-        for line in infile:
-            data = json.loads(line)
-            if data['description'] == [] and data['features'] == []:
-                continue
-            item_cnt += 1
-            filtered_data = {key:data[key] for key in keys_to_keep if key in data}
-            filtered_data['docid'] = item_cnt
-            filtered_data['description'] = " ".join(data['features'] + data['description'])
-            filtered_data['link'] = "https://www.amazon.com/dp/" + data['parent_asin']
-            output_file.write(json.dumps(filtered_data) + '\n')
-            
-    return item_cnt
-
-with gzip.open(COMBINE_PATH, 'wt') as outfile:
-    item_cnt = process_dataset(BEAUTY_PATH, outfile, item_cnt)
-    N_BEAUTY = item_cnt
-    item_cnt = process_dataset(FASHION_PATH, outfile, item_cnt)
-    N_FASHION = item_cnt - N_BEAUTY
-    
-print(f'Added {item_cnt} items in total to {COMBINE_PATH} from both Beauty and Fashion.')
 
 # Indexing docs and titles (running time: main_index 105min, title_index 320min)
 print('Loading indexes...')
@@ -116,7 +92,17 @@ else:
 # BM25 ranking to get top 50 docs
 ranker = Ranker(main_index, preprocessor, stopwords, BM25(main_index))
 
-beauty_queries = ["Hydrating face serum",
+beauty_queries = ["Matte pink lipstick",
+"Clear lip gloss",
+"Hydrating lip oil",
+"Pastel color eyeshadow palette",
+"Bronzer powder",
+"Eyebrow gel",
+"Eyelash curler",
+"White waterline eyeliner",
+"Blush brush",
+"Makeup blender sponge",
+"Hydrating face serum",
 "Organic lip balm",
 "Sunscreen spf 50",
 "Matte foundation",
@@ -126,8 +112,29 @@ beauty_queries = ["Hydrating face serum",
 "Gentle facial cleanser with natural ingredients",
 "Long-lasting waterproof mascara",
 "Shampoo and conditioner set for curly hair",
+"Face lotion with sunscreen",
+"Face sheet mask",
+"Makeup remover wipes",
+"Liquid eyeliner",
+"Plumping lip gloss",
+"Nail polish",
+"Body spray",
+"Setting spray",
+"Deodorant for sensitive skin",
+"Makeup brush set"
 ]
-fashion_queries = ["Maxi dress",
+
+fashion_queries = ["Leg warmers",
+"Frilly shorts",
+"Cardigan sweaters for women",
+"High waisted jeans",
+"Knee high boots women",
+"Platform heels",
+"Pink purse crossbody",
+"Leather jacket men",
+"Ripped jeans men",
+"T-shirt dress women",
+"Maxi dress",
 "Crop top",
 "V-neck t-shirt",
 "Gray baggy jeans",
@@ -137,10 +144,21 @@ fashion_queries = ["Maxi dress",
 "High-waisted leggings with pockets",
 "Casual blazer for men in slim fit style",
 "Kids’ winter coat waterproof",
+"Womens skinny jeans",
+"Womens sweaters warm",
+"Lightweight jacket for men",
+"Hiking boots for women",
+"Gloves for women",
+"Kids t-shirts",
+"Womens crop top",
+"Cardigan sweater with pockets",
+"Sundress",
+"Swim trunks"
 ]
 
 def check_amazon_item_exists(url):
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+    time.sleep(random.uniform(2, 5))
     response = requests.get(url, headers=headers)
 
     # Check if the page exists based on the HTTP status code

@@ -162,7 +162,6 @@ cython_debug/
 #.idea/
 
 /data
-document_preprocessor.py
 indexing.py
-ranker.py
 /main_index
+interactive.ipynb
