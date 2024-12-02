@@ -14,6 +14,7 @@ from transformers import pipeline, DistilBertTokenizer, DistilBertForSequenceCla
 from datasets import Dataset
 from document_preprocessor import RegexTokenizer
 import random
+from sklearn.model_selection import train_test_split
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -124,19 +125,20 @@ class DatasetPreprocessor:
             labeled_data.append({"text": data['description'], "label": label})
 
         labeled_data = random.sample(labeled_data, min(len(labeled_data), max_samples))
-        
+        train_data, val_data = train_test_split(labeled_data, test_size=0.2, random_state=650)
         
         tokenizer = DistilBertTokenizer.from_pretrained(pretrained_model)
-        for data in labeled_data:
-            # data['text'] = RegexTokenizer('\w+').tokenize(data['text'])
-            # Tokenize using the DistilBERT tokenizer instead of RegexTokenizer
+        def tokenize_data(data):
             encoding = tokenizer(data['text'], padding='max_length', truncation=True, max_length=512, return_tensors="pt")
-            
-            # Add the tokenized data (input_ids, attention_mask) to the dictionary
-            data['input_ids'] = encoding['input_ids'].squeeze().tolist()  # Convert tensor to list
-            data['attention_mask'] = encoding['attention_mask'].squeeze().tolist()  # Convert tensor to list
+            data['input_ids'] = encoding['input_ids'].squeeze().tolist()
+            data['attention_mask'] = encoding['attention_mask'].squeeze().tolist()
+            return data
+
+        train_data = [tokenize_data(data) for data in train_data]
+        val_data = [tokenize_data(data) for data in val_data]
         
-        train_dataset = Dataset.from_list(labeled_data).with_format("torch")
+        train_dataset = Dataset.from_list(train_data).with_format("torch")
+        val_dataset = Dataset.from_list(val_data).with_format("torch")
 
         model = DistilBertForSequenceClassification.from_pretrained(pretrained_model, num_labels=2)
 
@@ -151,16 +153,14 @@ class DatasetPreprocessor:
             logging_dir=f"{output_dir}/logs",
             logging_steps=100,
             save_total_limit=2,
-            report_to="none",  # Disable reporting
-            # warmup=600,
-            # learning_rate = 1e-5,
-            # max_seq_length = 128,
+            report_to="none",
         )
 
         trainer = Trainer(
             model=model,
             args=training_args,
             train_dataset=train_dataset,
+            eval_dataset=val_dataset,
             tokenizer=tokenizer,
         )
 
@@ -176,12 +176,10 @@ class DatasetPreprocessor:
         """
         Label eco-friendliness based on sentiment analysis using a fine-tuned model.
         """
-        # Load fine-tuned model and tokenizer
         tokenizer = DistilBertTokenizer.from_pretrained(model_path)
         model = DistilBertForSequenceClassification.from_pretrained(model_path, num_labels=2)
         sentiment_analyzer = pipeline("sentiment-analysis", model=model, tokenizer=tokenizer)
 
-        # Update dataset with sentiment-based labels
         with gzip.open(keyword_filtered_path, 'rt') as infile:
             lines = infile.readlines()
 
@@ -189,7 +187,7 @@ class DatasetPreprocessor:
         for line in lines:
             data = json.loads(line)
             description = data.get('description', '')
-            sentiment = sentiment_analyzer(description[:512])  # Truncate description to fit model input size
+            sentiment = sentiment_analyzer(description[:512])
             data['eco_friendly'] = sentiment[0]['label'] == 'LABEL_1'
             updated_data.append(data)
 
@@ -206,8 +204,8 @@ def main():
         dataset_preprocessor.combine_dataset()
     if not os.path.exists('data/eco_keyword_labeled.jsonl.gz'):
         dataset_preprocessor.filter_eco_keywords(eco_keywords=ecofriendly_keywords, noneco_keywords=nonfriendly_keywords)
-    # if not os.path.exists('./fine_tuned_model'):
-    dataset_preprocessor.fine_tune()
+    if not os.path.exists('./fine_tuned_model'):
+        dataset_preprocessor.fine_tune()
     if not os.path.exists('data/sentiment_labeled.json.gz'):
         dataset_preprocessor.filter_eco_sentiment()
 
