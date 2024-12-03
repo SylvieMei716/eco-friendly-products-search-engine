@@ -1,4 +1,6 @@
 '''
+Edited by Lindsey Dye
+
 Author: Prithvijit Dasgupta
 
 This file contains the base models required by the service to function
@@ -12,6 +14,9 @@ class SearchResponse(BaseModel):
     id: int
     docid: int
     score: float
+    image: str | None  # URL to the product image
+    link: str | None   # URL to the product page
+    eco_friendly_tag: str | None  # Eco-friendliness tag
 
 class PaginationModel(BaseModel):
     prev: str
