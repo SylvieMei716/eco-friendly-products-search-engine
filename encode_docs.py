@@ -1,3 +1,8 @@
+"""
+Encode dataset to embeddings using given biencoder model
+Author: Pooja Thakur
+
+"""
 from sentence_transformers import SentenceTransformer, util
 import numpy as np
 import jsonlines
