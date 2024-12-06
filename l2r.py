@@ -260,7 +260,7 @@ class L2RFeatureExtractor:
                  document_preprocessor: Tokenizer, stopwords: set[str],
                  recognized_categories: set[str], #docid_to_network_features: dict[int, dict[str, float]],
                  ce_scorer: CrossEncoderScorer, multimodal: MultimodalSearch, 
-                 doc_image_info: dict[int, str]) -> None:
+                 doc_image_info: dict[int, str], keywords: str) -> None:
         """
         Initializes a L2RFeatureExtractor object.
 
@@ -288,6 +288,8 @@ class L2RFeatureExtractor:
         self.ce_scorer = ce_scorer
         self.multimodal = multimodal
         self.doc_image_info = doc_image_info
+        self.keyword_parts = document_preprocessor.tokenize(keywords)
+        self.keyword_dict = Counter(self.keyword_parts)
 
         # TODO: For the recognized categories (i.e,. those that are going to be features), consider
         #       how you want to store them here for faster featurizing
@@ -493,6 +495,23 @@ class L2RFeatureExtractor:
     # CLIP score
     def get_clip_score(self, docid: int, query: str) -> list[float]:
         return self.multimodal.compute_similarity(self.doc_image_info.get(docid, ""), [query])
+    
+    #Calculate TF IDF with title index of products and keywords
+    def get_tf_idf_keyword(self, index: InvertedIndex, docid: int,
+                word_counts: dict[str, int], keyword_dict: dict[str, int], keyword_parts: list[str]) -> float:
+        """s = index.get_statistics()
+        score = 0
+        n = s['number_of_documents']
+        for token in keyword_dict:
+                if token in word_counts:
+                    d = index.get_term_metadata(token)
+                    df = d['doc_frequency']
+                    t1 = np.log(word_counts[token]+1)
+                    t2 = np.log(n/df)+1
+                    score += t1*t2"""
+        tfidf = TF_IDF(index)
+        score = tfidf.score(docid, word_counts, keyword_parts)
+        return score
 
     # TODO: Add eco-friendliness score
 
@@ -571,6 +590,9 @@ class L2RFeatureExtractor:
         
         # CLIP score
         feature_vector.append(self.get_clip_score(docid, " ".join(query_parts)))
+
+        #keyword tfidf feature
+        feature_vector.append(self.get_tf_idf_keyword(self.title_index, docid, title_word_counts, self.keyword_dict, self.keyword_parts))
 
         # TODO: Calculate the Document Categories features.
         # for cate in self.get_document_categories(docid):
