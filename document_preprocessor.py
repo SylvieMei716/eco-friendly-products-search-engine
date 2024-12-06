@@ -1,214 +1,288 @@
 """
-This file is to combine datasets and label eco-friendliness 
-(and a lot of other preprocessing).
-
-Date: Dec 1, 2024
-Author: Sylvie Mei
+This is the template for implementing the tokenizer for your search engine.
+You will be testing some tokenization techniques.
 """
-
+from nltk.tokenize import RegexpTokenizer
+import spacy
+import string
+import time
+# import matplotlib.pyplot as plt
 import gzip
 import json
+import sys
 import os
-import pickle
-from transformers import pipeline, DistilBertTokenizer, DistilBertForSequenceClassification, Trainer, TrainingArguments
-from datasets import Dataset
-from document_preprocessor import RegexTokenizer
-import random
-from sklearn.model_selection import train_test_split
+import re
+from spacy.util import compile_suffix_regex
+from spacy.tokenizer import Tokenizer
+import torch
+from transformers import T5Tokenizer, T5ForConditionalGeneration
+from nltk.tokenize import MWETokenizer
 
-import warnings
-warnings.filterwarnings('ignore')
-
-DATA_PATH = 'data/'  # TODO: Set this to the path to your data folder
-CACHE_PATH = '__pycache__/'  # Set this to the path of the cache folder
-
-BEAUTY_PATH = DATA_PATH + 'meta_All_Beauty.jsonl.gz'
-FASHION_PATH = DATA_PATH + 'meta_Amazon_Fashion.jsonl.gz'
-COMBINE_PATH = DATA_PATH + 'Beauty_and_Fashion.jsonl.gz'
-STOPWORD_PATH = DATA_PATH + 'stopwords.txt'
-MAIN_INDEX = 'main_index'
-TITLE_INDEX = 'title_index'
-N_DOC_NEEDED = 50
-DOCID_TO_TITLE_PATH = CACHE_PATH + 'docid_to_title.pkl'
-DOCID_TO_LINK_PATH = CACHE_PATH + 'docid_to_link.pkl'
-DOCID_TO_IMAGE_PATH = CACHE_PATH + 'docid_to_image.pkl'
-DOCID_TO_ASIN_PATH = CACHE_PATH + 'docid_to_asin.pkl'
-DOCID_TO_DESC_PATH = CACHE_PATH + 'docid_to_desc.pkl'
-
-DATASET_PATHS = [BEAUTY_PATH, FASHION_PATH]
-KEYS_TO_KEEP = ["main_category", "title", "average_rating", 
-                "rating_number", "price", "images", "details"]
-
-# TODO: Modify positive and negative keywords
-ecofriendly_keywords = ['sustainable', 'organic', 'biodegradable', 'recyclable', 
-                        'compostable', 'recycled', 'non-toxic', 'renewable', 
-                        'plant-based', 'vegan', 'low-impact', 'zero-waste', 
-                        'green', 'cruelty-free', 'FSC-certified', 'carbon-neutral', 
-                        'Energy Star', 'Fair Trade', 'eco-conscious', 
-                        'climate-positive', 'upcycled', 'responsibly sourced', 
-                        'energy-efficient', 'plastic-free', 'pesticide-free', 
-                        'natural', 'ethical', 'eco-label', 'water-saving', 
-                        'low-carbon', 'toxin-free', 'green-certified', 'eco-safe']
-nonfriendly_keywords = ['non-recyclable', 'disposable', 'single-use']
-
-class DatasetPreprocessor:
-    def __init__(self, dataset_paths: list[str], combined_path: str, keys_to_keep: list[str]) -> None:
-        self.dataset_paths = dataset_paths
-        self.combined_path = combined_path
-        self.keys_to_keep = keys_to_keep
-        
-    def combine_dataset(self) -> None:
+class Tokenizer:
+    def __init__(self, lowercase: bool = True, multiword_expressions: list[str] = None) -> None:
         """
-        Create combined dataset from input dataset list.
+        A generic class for objects that turn strings into sequences of tokens.
+        A tokenizer can support different preprocessing options or use different methods
+        for determining word breaks.
+
+        Args:
+            lowercase: Whether to lowercase all the tokens
+            multiword_expressions: A list of strings that should be recognized as single tokens
+                If set to 'None' no multi-word expression matching is performed.
         """
-        total_cnt = 0
-        with gzip.open(self.combined_path, 'wt') as outfile:
-            for input_path in self.dataset_paths:
-                dataset_item_cnt = 0
-                with gzip.open(input_path, 'r') as infile:
-                    for line in infile:
-                        data = json.loads(line)
-                        if data['description'] == [] and data['features'] == []:
-                            continue
-                        dataset_item_cnt += 1
-                        total_cnt += 1
-                        filtered_data = {key:data[key] for key in self.keys_to_keep if key in data}
-                        filtered_data['docid'] = total_cnt
-                        filtered_data['description'] = " ".join(data['description'] + data['features'])
-                        filtered_data['link'] = "https://www.amazon.com/dp/" + data['parent_asin']
+        # TODO: Save arguments that are needed as fields of this class
+        self.lowercase = lowercase
+        self.multiword_expressions = multiword_expressions
+        pass
+
+    def postprocess(self, input_tokens: list[str]) -> list[str]:
+        """
+        Performs any set of optional operations to modify the tokenized list of words such as
+        lower-casing and multi-word-expression handling. After that, return the modified list of tokens.
+
+        Args:
+            input_tokens: A list of tokens
+
+        Returns:
+            A list of tokens processed by lower-casing depending on the given condition
+        """
+        # TODO: Add support for lower-casing and multi-word expressions
+        if self.lowercase:
+            input_tokens = [token.lower() for token in input_tokens]
+            
+        if self.multiword_expressions is not None:
+            # output_tokens = []
+            # i = 0
+            # # Sort multi-word expressions by length desc
+            sorted_mwe = sorted(self.multiword_expressions, key=lambda x: len(x.split()), reverse=True)
+            
+            # while i < len(input_tokens):
+            #     mwe_matched = False
+            #     for mwe in sorted_mwe:
+            #         mwe_words = mwe.split()
+            #         mwe_len = len(mwe_words)
+
+            #         if i + mwe_len <= len(input_tokens):
+            #             if input_tokens[i:i+mwe_len] == mwe_words:
+            #                 output_tokens.append(' '.join(mwe_words))
+            #                 i += mwe_len
+            #                 mwe_matched = True
+            #                 break
                         
-                        outfile.write(json.dumps(filtered_data) + '\n')
-                    
-                    print(f'Added {dataset_item_cnt} items from {input_path}.')
-        
-        print(f'Added {total_cnt} items in total to {self.combined_path}')
+            #             elif (input_tokens[i:i+mwe_len-1] == mwe_words[:-1] and
+            #                 input_tokens[i+mwe_len-1].startswith(mwe_words[-1]) and
+            #                 input_tokens[i+mwe_len-1][len(mwe_words[-1]):] in string.punctuation):
+            #                 output_tokens.append(' '.join(input_tokens[i:i+mwe_len]))
+            #                 i += mwe_len
+            #                 mwe_matched = True
+            #                 break
 
-        return
+            #     if not mwe_matched:
+            #         output_tokens.append(input_tokens[i])
+            #         i += 1
+            
+            # input_tokens = output_tokens
+            mwe_tuples = [list(mwe.split()) for mwe in sorted_mwe]
     
-    def filter_eco_keywords(self, eco_keywords: list[str], noneco_keywords: list[str], keyword_filtered_path = 'data/eco_keyword_labeled.jsonl.gz') -> None:
+            mwe_tokenizer = MWETokenizer(mwe_tuples, separator=" ")
+            
+            input_tokens = mwe_tokenizer.tokenize(input_tokens)
+            
+        return input_tokens
+        pass
+
+    def tokenize(self, text: str) -> list[str]:
         """
-        Label eco-fridnedliness based on keywords filtering.
+        Splits a string into a list of tokens and performs all required postprocessing steps.
+
+        Args:
+            text: An input text you want to tokenize
+
+        Returns:
+            A list of tokens
+        """
+        # You should implement this in a subclass, not here
+        raise NotImplementedError(
+            'tokenize() is not implemented in the base class; please use a subclass')
+
+
+class SplitTokenizer(Tokenizer):
+    def __init__(self, lowercase: bool = True, multiword_expressions: list[str] = None) -> None:
+        """
+        Uses the split function to tokenize a given string.
+
+        Args:
+            lowercase: Whether to lowercase all the tokens
+            multiword_expressions: A list of strings that should be recognized as single tokens
+                If set to 'None' no multi-word expression matching is performed.
+                No need to perform/implement multi-word expression recognition for HW3; you can ignore this.
+        """
+        super().__init__(lowercase, multiword_expressions)
+
+    def tokenize(self, text: str) -> list[str]:
+        """
+        Split a string into a list of tokens using whitespace as a delimiter.
+
+        Args:
+            text: An input text you want to tokenize
+
+        Returns:
+            A list of tokens
+        """
+        output_tokens = self.postprocess(text.split())
+        return output_tokens
+        pass
+
+
+class RegexTokenizer(Tokenizer):
+    def __init__(self, token_regex: str = '\w+', lowercase: bool = True, multiword_expressions: list[str] = None) -> None:
+        """
+        Uses NLTK's RegexpTokenizer to tokenize a given string.
+
+        Args:
+            token_regex: Use the following default regular expression pattern: '\w+'
+            lowercase: Whether to lowercase all the tokens
+            multiword_expressions: A list of strings that should be recognized as single tokens
+                If set to 'None' no multi-word expression matching is performed.
+                No need to perform/implement multi-word expression recognition for HW3; you can ignore this.
+        """
+        super().__init__(lowercase, multiword_expressions)
+        # TODO: Save a new argument that is needed as a field of this class
+        self.token_regex = token_regex
+        # TODO: Initialize the NLTK's RegexpTokenizer
+        self.tokenizer = RegexpTokenizer(self.token_regex)
+
+    def tokenize(self, text: str) -> list[str]:
+        """
+        Uses NLTK's RegexTokenizer and a regular expression pattern to tokenize a string.
+
+        Args:
+            text: An input text you want to tokenize
+
+        Returns:
+            A list of tokens
+        """
+        # TODO: Tokenize the given text and perform postprocessing on the list of tokens
+        #       using the postprocess function
+        tokens = self.tokenizer.tokenize(text)
+        return self.postprocess(tokens)
+        pass
+
+
+class SpaCyTokenizer(Tokenizer):
+    def __init__(self, lowercase: bool = True, multiword_expressions: list[str] = None) -> None:
+        """
+        Use a spaCy tokenizer to convert named entities into single words. 
+        Check the spaCy documentation to learn about the feature that supports named entity recognition.
+
+        Args:
+            lowercase: Whether to lowercase all the tokens
+            multiword_expressions: A list of strings that should be recognized as single tokens
+                If set to 'None' no multi-word expression matching is performed.
+                No need to perform/implement multi-word expression recognition for HW3; you can ignore this.
+        """
+        super().__init__(lowercase, multiword_expressions)
+        self.nlp = spacy.load('en_core_web_sm')
+        
+        self.nlp.tokenizer.add_special_case("Children's", [{"ORTH": "Children's"}])
+        self.nlp.tokenizer.add_special_case("People's", [{"ORTH": "People's"}])
+        self.nlp.tokenizer.add_special_case("Year's", [{"ORTH": "Year's"}])
+        self.nlp.tokenizer.add_special_case("Men's", [{"ORTH": "Men's"}])
+        self.nlp.tokenizer.add_special_case("King's", [{"ORTH": "King's"}])
+        self.nlp.tokenizer.add_special_case("Grey's", [{"ORTH": "Grey's"}])
+
+    def tokenize(self, text: str) -> list[str]:
+        """
+        Use a spaCy tokenizer to convert named entities into single words.
+
+        Args:
+            text: An input text you want to tokenize
+
+        Returns:
+            A list of tokens
+        """
+        doc = self.nlp(text)
+        tokens = [token.text for token in doc]
+
+        tokens = self.postprocess(tokens)
+        
+        return tokens
+        pass
+
+
+# TODO (HW3): Take in a doc2query model and generate queries from a piece of text
+# Note: This is just to check you can use the models;
+#       for downstream tasks such as index augmentation with the queries, use doc2query.csv
+class Doc2QueryAugmenter:
+    """
+    This class is responsible for generating queries for a document.
+    These queries can augment the document before indexing.
+
+    MUST READ: https://huggingface.co/doc2query/msmarco-t5-base-v1
+
+    OPTIONAL reading
+        1. Document Expansion by Query Prediction (Nogueira et al.): https://arxiv.org/pdf/1904.08375.pdf
+    """
+    
+    def __init__(self, doc2query_model_name: str = 'doc2query/msmarco-t5-base-v1') -> None:
+        """
+        Creates the T5 model object and the corresponding dense tokenizer.
         
         Args:
-        eco_keywords
+            doc2query_model_name: The name of the T5 model architecture used for generating queries
         """
-        with gzip.open(keyword_filtered_path, 'wt') as outfile:
-            with gzip.open(self.combined_path, 'rt') as file:
-                for line in file:
-                    data = json.loads(line)
-                    description = data.get('description', '').lower()
+        self.device = torch.device('cpu')  # Do not change this unless you know what you are doing
 
-                    eco_label = False
-                    if any(eco_word in description for eco_word in eco_keywords):
-                        if not any(noneco_word in description for noneco_word in noneco_keywords):
-                            eco_label = True
+        # TODO (HW3): Create the dense tokenizer and query generation model using HuggingFace transformers
+        self.tokenizer = T5Tokenizer.from_pretrained(doc2query_model_name)
+        self.model = T5ForConditionalGeneration.from_pretrained(doc2query_model_name).to(self.device)
 
-                    data['eco_friendly'] = eco_label
-                    outfile.write(json.dumps(data) + '\n')
-    
-    def fine_tune(self, pretrained_model: str = "distilbert-base-uncased-finetuned-sst-2-english", 
-                  max_samples: int = 5000, num_epochs: int = 3, output_dir: str = "./fine_tuned_model", 
-                  keyword_filtered_path = 'data/eco_keyword_labeled.jsonl.gz') -> None:
+    def get_queries(self, document: str, n_queries: int = 5, prefix_prompt: str = '') -> list[str]:
         """
-        Fine-tune a pre-trained DistilBERT model using keyword-filtered labeled data.
-        """
-        with gzip.open(keyword_filtered_path, 'rt') as infile:
-            lines = infile.readlines()
-
-        labeled_data = []
-        for line in lines:
-            data = json.loads(line)
-            if 'eco_friendly' not in data:
-                raise ValueError("The dataset does not have eco_friendly labels. Please run filter_eco_keywords first.")
-            
-            label = 1 if data['eco_friendly'] else 0
-            labeled_data.append({"text": data['description'], "label": label})
-
-        labeled_data = random.sample(labeled_data, min(len(labeled_data), max_samples))
-        train_data, val_data = train_test_split(labeled_data, test_size=0.2, random_state=650)
+        Steps
+            1. Use the dense tokenizer/encoder to create the dense document vector.
+            2. Use the T5 model to generate the dense query vectors (you should have a list of vectors).
+            3. Decode the query vector using the tokenizer/decode to get the appropriate queries.
+            4. Return the queries.
+         
+            Ensure you take care of edge cases.
+         
+        OPTIONAL (DO NOT DO THIS before you finish the assignment):
+            Neural models are best performing when batched to the GPU.
+            Try writing a separate function which can deal with batches of documents.
         
-        tokenizer = DistilBertTokenizer.from_pretrained(pretrained_model)
-        def tokenize_data(data):
-            encoding = tokenizer(data['text'], padding='max_length', truncation=True, max_length=512, return_tensors="pt")
-            data['input_ids'] = encoding['input_ids'].squeeze().tolist()
-            data['attention_mask'] = encoding['attention_mask'].squeeze().tolist()
-            return data
-
-        train_data = [tokenize_data(data) for data in train_data]
-        val_data = [tokenize_data(data) for data in val_data]
+        Args:
+            document: The text from which queries are to be generated
+            n_queries: The total number of queries to be generated
+            prefix_prompt: An optional parameter that gets added before the text.
+                Some models like flan-t5 are not fine-tuned to generate queries.
+                So we need to add a prompt to instruct the model to generate queries.
+                This string enables us to create a prefixed prompt to generate queries for the models.
+                See the PDF for what you need to do for this part.
+                Prompt-engineering: https://en.wikipedia.org/wiki/Prompt_engineering
         
-        train_dataset = Dataset.from_list(train_data).with_format("torch")
-        val_dataset = Dataset.from_list(val_data).with_format("torch")
-
-        model = DistilBertForSequenceClassification.from_pretrained(pretrained_model, num_labels=2)
-
-        
-        training_args = TrainingArguments(
-            output_dir=output_dir,
-            evaluation_strategy="steps",
-            save_strategy="steps",
-            save_steps=500,
-            per_device_train_batch_size=16,
-            num_train_epochs=num_epochs,
-            logging_dir=f"{output_dir}/logs",
-            logging_steps=100,
-            save_total_limit=2,
-            report_to="none",
-        )
-
-        trainer = Trainer(
-            model=model,
-            args=training_args,
-            train_dataset=train_dataset,
-            eval_dataset=val_dataset,
-            tokenizer=tokenizer,
-        )
-
-        trainer.train()
-
-        model.save_pretrained(output_dir)
-        tokenizer.save_pretrained(output_dir)
-        print(f"Fine-tuned model saved to {output_dir}.")
-
-    def filter_eco_sentiment(self, model_path: str = "./fine_tuned_model", 
-                             keyword_filtered_path = 'data/eco_keyword_labeled.jsonl.gz', 
-                             sentiment_filtered_path = 'data/sentiment_labeled.json.gz') -> None:
+        Returns:
+            A list of query strings generated from the text
         """
-        Label eco-friendliness based on sentiment analysis using a fine-tuned model.
-        """
-        tokenizer = DistilBertTokenizer.from_pretrained(model_path)
-        model = DistilBertForSequenceClassification.from_pretrained(model_path, num_labels=2)
-        sentiment_analyzer = pipeline("sentiment-analysis", model=model, tokenizer=tokenizer)
+        if n_queries == 0 or document == "":
+            return []
+        # Note: Feel free to change these values to experiment
+        document_max_token_length = 400  # as used in OPTIONAL Reading 1
+        top_p = 0.85
 
-        with gzip.open(keyword_filtered_path, 'rt') as infile:
-            lines = infile.readlines()
+        # NOTE: See https://huggingface.co/doc2query/msmarco-t5-base-v1 for details
 
-        updated_data = []
-        for line in lines:
-            data = json.loads(line)
-            description = data.get('description', '')
-            sentiment = sentiment_analyzer(description[:512])
-            data['eco_friendly'] = sentiment[0]['label'] == 'LABEL_1'
-            updated_data.append(data)
+        # TODO (HW3): For the given model, generate a list of queries that might reasonably be issued to search
+        #       for that document
+        input_text = prefix_prompt + document
+        inputs = self.tokenizer.encode(input_text, return_tensors='pt', truncation=True, max_length=document_max_token_length).to(self.device)
+        outputs = self.model.generate(inputs, max_length=64, do_sample=True, top_p=top_p, num_return_sequences=n_queries)
+        queries = [self.tokenizer.decode(output, skip_special_tokens=True) for output in outputs]
+        return queries
+        # NOTE: Do not forget edge cases
+        pass
 
-        with gzip.open(sentiment_filtered_path, 'wt') as outfile:
-            for data in updated_data:
-                outfile.write(json.dumps(data) + '\n')
 
-        print(f"Sentiment-based eco-friendliness labeling completed and updated in {sentiment_filtered_path}")
-    
-    
-def main():
-    dataset_preprocessor = DatasetPreprocessor(DATASET_PATHS, COMBINE_PATH, KEYS_TO_KEEP)
-    if not os.path.exists(COMBINE_PATH):
-        dataset_preprocessor.combine_dataset()
-    if not os.path.exists('data/eco_keyword_labeled.jsonl.gz'):
-        dataset_preprocessor.filter_eco_keywords(eco_keywords=ecofriendly_keywords, noneco_keywords=nonfriendly_keywords)
-    if not os.path.exists('./fine_tuned_model'):
-        dataset_preprocessor.fine_tune()
-    if not os.path.exists('data/sentiment_labeled.json.gz'):
-        dataset_preprocessor.filter_eco_sentiment()
-
+# Don't forget that you can have a main function here to test anything in the file
 if __name__ == '__main__':
-    main()
-    
+    pass
