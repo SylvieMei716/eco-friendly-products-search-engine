@@ -210,29 +210,29 @@ class SearchEngine(BaseSearchEngine):
                 )
             del docid_to_categories, category_counts
 
-            print('Loading network features...')
-            self.network_features = defaultdict()
-            if not os.path.exists(NETWORK_STATS_PATH):
-                nf = NetworkFeatures()
-                graph = nf.load_network(EDGELIST_PATH, total_edges=92650947)
-                net_feats_df = nf.get_all_network_statistics(graph)
-                del graph
-                net_feats_df.to_csv(NETWORK_STATS_PATH, index=False)
-                for idx, row in tqdm(net_feats_df.iterrows()):
-                    for col in ['pagerank', 'hub_score', 'authority_score']:
-                        self.network_features[row['docid']][col] = row[col]
-                del net_feats_df
-            else:
-                with open(NETWORK_STATS_PATH, 'r') as f:
-                    for idx, row in tqdm(enumerate(f)):
-                        if idx == 0:
-                            continue
-                        splits = row.strip().split(',')
-                        self.network_features[int(splits[0])] = {
-                            'pagerank': float(splits[1]),
-                            'hub_score': float(splits[2]),
-                            'authority_score': float(splits[3])
-                        }
+            # print('Loading network features...')
+            # self.network_features = defaultdict()
+            # if not os.path.exists(NETWORK_STATS_PATH):
+            #     nf = NetworkFeatures()
+            #     graph = nf.load_network(EDGELIST_PATH, total_edges=92650947)
+            #     net_feats_df = nf.get_all_network_statistics(graph)
+            #     del graph
+            #     net_feats_df.to_csv(NETWORK_STATS_PATH, index=False)
+            #     for idx, row in tqdm(net_feats_df.iterrows()):
+            #         for col in ['pagerank', 'hub_score', 'authority_score']:
+            #             self.network_features[row['docid']][col] = row[col]
+            #     del net_feats_df
+            # else:
+            #     with open(NETWORK_STATS_PATH, 'r') as f:
+            #         for idx, row in tqdm(enumerate(f)):
+            #             if idx == 0:
+            #                 continue
+            #             splits = row.strip().split(',')
+            #             self.network_features[int(splits[0])] = {
+            #                 'pagerank': float(splits[1]),
+            #                 'hub_score': float(splits[2]),
+            #                 'authority_score': float(splits[3])
+            #             }
 
             self.cescorer = CrossEncoderScorer(self.raw_text_dict)
             self.multimodal = MultimodalSearch()
@@ -252,11 +252,19 @@ class SearchEngine(BaseSearchEngine):
             self.pipeline.train(RELEVANCE_TRAIN_PATH)
             self.l2r = True
 
-    def search(self, query: str) -> list[SearchResponse]:
+    def search(self, query: str, sort_option: str) -> list[SearchResponse]:
         # 1. Use the ranker object to query the search pipeline
         # 2. This is example code and may not be correct.
         results = self.pipeline.query(query)
-        return [SearchResponse(id=idx+1, docid=result[0], score=result[1]) for idx, result in enumerate(results)]
+        if sort_option == 'price-asc':
+            # return sorted by price asc
+            return sorted([SearchResponse(id=idx+1, docid=result[0], score=result[1], price = result[2]) for idx, result in enumerate(results)], key=lambda x: x[3], reverse=False)
+            pass
+        if sort_option == 'price-desc':
+            # return sorted by pricd desc
+            return sorted([SearchResponse(id=idx+1, docid=result[0], score=result[1], price = result[2]) for idx, result in enumerate(results)], key=lambda x: x[3], reverse=True)
+            pass
+        return [SearchResponse(id=idx+1, docid=result[0], score=result[1], price = result[2]) for idx, result in enumerate(results)]
 
 
 def initialize():

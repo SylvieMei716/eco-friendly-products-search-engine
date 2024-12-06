@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 class QueryModel(BaseModel):
     query:str
+    sort_option: str
 
 class SearchResponse(BaseModel):
     id: int

@@ -40,7 +40,7 @@ class L2RRanker:
         self.model = LambdaMART()
         pass
                    
-    def prepare_training_data(self, query_to_document_relevance_scores: dict[str, list[tuple[int, int]]], docid_to_image_url: dict[int, str]):
+    def prepare_training_data(self, query_to_document_relevance_scores: dict[str, list[tuple[int, int]]]):
         """
         Prepares the training data for the learning-to-rank algorithm.
 
@@ -72,7 +72,7 @@ class L2RRanker:
         # TODO: For each of the documents, generate its features, then append
         # the features and relevance score to the lists to be returned
             for docid, relevance_score in doc_relevance_lst:
-                features = self.feature_extractor.generate_features(docid, doc_word_counts, title_word_counts, query_parts, docid_to_image_url[docid])
+                features = self.feature_extractor.generate_features(docid, doc_word_counts, title_word_counts, query_parts)
                 X.append(features)
                 y.append(relevance_score * 2) # Double the training data's relevance score to avoid lightgbm error
 
@@ -169,7 +169,7 @@ class L2RRanker:
         return self.model.predict(X)
         pass
 
-    def query(self, query: str, docid_to_image_url: dict[int, str], pseudofeedback_num_docs=0, pseudofeedback_alpha=0.8,
+    def query(self, query: str, doc_price_info: dict[int, float], pseudofeedback_num_docs=0, pseudofeedback_alpha=0.8,
               pseudofeedback_beta=0.2, user_id=None) -> list[tuple[int, float]]:
         """
         Retrieves potentially-relevant documents, constructs feature vectors for each query-document pair,
@@ -223,7 +223,7 @@ class L2RRanker:
         #       This ordering determines which documents we will try to *re-rank* using our L2R model
         # TODO: (HW4) support pseudofeedback arguments for the initial ranking
         # bm25 = self.scorer
-        relevant_docs = self.scorer.query(query, pseudofeedback_num_docs, pseudofeedback_alpha, pseudofeedback_beta)
+        relevant_docs = self.scorer.query(query, doc_price_info, pseudofeedback_num_docs, pseudofeedback_alpha, pseudofeedback_beta)
         
         # vector_ranker = self.scorer
         # relevant_docs = vector_ranker.query(query, pseudofeedback_num_docs, pseudofeedback_alpha, pseudofeedback_beta)
@@ -234,13 +234,13 @@ class L2RRanker:
 
         # TODO: Construct the feature vectors for each query-document pair in the top 100
         X_top_100 = []
-        for top_doc_id, top_doc_score in top_100_docs:
-            feature_vector = self.feature_extractor.generate_features(top_doc_id, doc_word_counts, title_word_counts, query_parts, docid_to_image_url[top_doc_id])
+        for top_doc_id, top_doc_score, top_doc_price in top_100_docs:
+            feature_vector = self.feature_extractor.generate_features(top_doc_id, doc_word_counts, title_word_counts, query_parts)
             X_top_100.append(feature_vector)
 
         # TODO: Use your L2R model to rank these top 100 documents
         ranked_top_100_scores = self.model.predict(X_top_100)
-        ranked_top_100 = [(doc_id, score) for (doc_id, _), score in zip(top_100_docs, ranked_top_100_scores)]
+        ranked_top_100 = [(doc_id, score, price) for (doc_id, _, price), score in zip(top_100_docs, ranked_top_100_scores)]
         
         # TODO: Sort posting_lists based on scores
         ranked_top_100 = sorted(ranked_top_100, key=lambda x:x[1], reverse=True)
@@ -256,10 +256,11 @@ class L2RRanker:
 
 class L2RFeatureExtractor:
     def __init__(self, document_index: InvertedIndex, title_index: InvertedIndex,
-                 doc_category_info: dict[int, list[str]],
+                #  doc_category_info: dict[int, list[str]],
                  document_preprocessor: Tokenizer, stopwords: set[str],
                  recognized_categories: set[str], #docid_to_network_features: dict[int, dict[str, float]],
-                 ce_scorer: CrossEncoderScorer, multimodal: MultimodalSearch) -> None:
+                 ce_scorer: CrossEncoderScorer, multimodal: MultimodalSearch, 
+                 doc_image_info: dict[int, str]) -> None:
         """
         Initializes a L2RFeatureExtractor object.
 
@@ -279,13 +280,14 @@ class L2RFeatureExtractor:
         # TODO: Set the initial state using the arguments
         self.document_index = document_index
         self.title_index = title_index
-        self.doc_category_info = doc_category_info
+        # self.doc_category_info = doc_category_info
         self.document_preprocessor = document_preprocessor
         self.stopwords = stopwords
         self.recognized_categories = list(recognized_categories)
         # self.docid_to_network_features = docid_to_network_features
         self.ce_scorer = ce_scorer
         self.multimodal = multimodal
+        self.doc_image_info = doc_image_info
 
         # TODO: For the recognized categories (i.e,. those that are going to be features), consider
         #       how you want to store them here for faster featurizing
@@ -408,27 +410,27 @@ class L2RFeatureExtractor:
         pass
 
     # TODO: Document Categories
-    def get_document_categories(self, docid: int) -> list:
-        """
-        Generates a list of binary features indicating which of the recognized categories that the document has.
-        Category features should be deterministically ordered so list[0] should always correspond to the same
-        category. For example, if a document has one of the three categories, and that category is mapped to
-        index 1, then the binary feature vector would look like [0, 1, 0].
+    # def get_document_categories(self, docid: int) -> list:
+    #     """
+    #     Generates a list of binary features indicating which of the recognized categories that the document has.
+    #     Category features should be deterministically ordered so list[0] should always correspond to the same
+    #     category. For example, if a document has one of the three categories, and that category is mapped to
+    #     index 1, then the binary feature vector would look like [0, 1, 0].
 
-        Args:
-            docid: The id of the document
+    #     Args:
+    #         docid: The id of the document
 
-        Returns:
-            A list containing binary list of which recognized categories that the given document has
-        """
-        binary_features = [0] * len(self.recognized_categories)
-        document_categories = self.doc_category_info.get(docid, [])
-        for category in document_categories:
-            if category in self.recognized_categories:
-                idx = self.recognized_categories.index(category)
-                binary_features[idx] = 1
-        return binary_features
-        pass
+    #     Returns:
+    #         A list containing binary list of which recognized categories that the given document has
+    #     """
+    #     binary_features = [0] * len(self.recognized_categories)
+    #     document_categories = self.doc_category_info.get(docid, [])
+    #     for category in document_categories:
+    #         if category in self.recognized_categories:
+    #             idx = self.recognized_categories.index(category)
+    #             binary_features[idx] = 1
+    #     return binary_features
+    #     pass
 
     # TODO: PageRank
     # def get_pagerank_score(self, docid: int) -> float:
@@ -488,8 +490,11 @@ class L2RFeatureExtractor:
         return cross_encoder.score(docid, query)
         pass
     
-    def get_clip_score(self, image_url: str, query: str) -> list[float]:
-        return self.multimodal.compute_similarity(image_url, query)
+    # CLIP score
+    def get_clip_score(self, docid: int, query: str) -> list[float]:
+        return self.multimodal.compute_similarity(self.doc_image_info.get(docid, ""), [query])
+
+    # TODO: Add eco-friendliness score
 
     # TODO: Add at least one new feature to be used with your L2R model
 
@@ -564,11 +569,12 @@ class L2RFeatureExtractor:
         #         title_query_overlap_count += 1
         # feature_vector.append(title_query_overlap_count / len(query_parts))
         
-        feature_vector.append(self.get_clip_score(image_url, " ".join(query_parts)))
+        # CLIP score
+        feature_vector.append(self.get_clip_score(docid, " ".join(query_parts)))
 
         # TODO: Calculate the Document Categories features.
-        for cate in self.get_document_categories(docid):
-            feature_vector.append(cate)
+        # for cate in self.get_document_categories(docid):
+        #     feature_vector.append(cate)
         # NOTE: This should be a list of binary values indicating which categories are present.
 
         return feature_vector
