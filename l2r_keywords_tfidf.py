@@ -571,7 +571,7 @@ class L2RFeatureExtractor:
         """keyword_sim = self.get_keyword_similarity(docid, self.keyword_embed, self.prod_embeddings, self.row_to_doc)
         for i in keyword_sim:
             feature_vector.append(i)"""
-        feature_vector.append(self.get_tf_idf_keyword(self.title_index, docid, doc_word_counts, self.keywords))
+        feature_vector.append(self.get_tf_idf_keyword(self.title_index, docid, title_word_counts, self.keywords))
 
         # TODO: Calculate the Document Categories features.
         #for cate in self.get_document_categories(docid):
