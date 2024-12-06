@@ -7,15 +7,18 @@ from tqdm import tqdm
 
 from document_preprocessor import RegexTokenizer
 from indexing import Indexer, IndexType, BasicInvertedIndex
-from ranker import BM25, Ranker
+from ranker import BM25, Ranker, CrossEncoderScorer
 from l2r import L2RRanker, L2RFeatureExtractor
 from multimodal import MultimodalSearch
+import csv
 
 DATA_PATH = './data/'
-CACHE_PATH = './__cache__/'
+CACHE_PATH = './__pycache__/'
 
 STOPWORD_PATH = DATA_PATH + 'stopwords.txt'
-DATASET_PATH = DATA_PATH + 'meta_All_Beauty.jsonl.gz'
+DATASET_PATH = DATA_PATH + 'Beauty_and_Fashion.jsonl.gz'
+DOCID_TO_IMAGE_PATH = CACHE_PATH + 'docid_to_image.pkl'
+TITLE_INDEX = 'title_index'
 
 class EcoSearchEngine:
     def __init__(self, max_docs: int = -1, use_l2r: bool = False, multimodal: bool = False):
@@ -33,6 +36,10 @@ class EcoSearchEngine:
         self.index = BasicInvertedIndex()
         self.dataset = self.load_dataset(DATASET_PATH, max_docs)
         self.index_documents()
+        
+        self.title_index = BasicInvertedIndex()
+        self.dataset = self.load_dataset(DATASET_PATH, max_docs)
+        self.index_titles()
 
         # Initialize BM25 as the default ranker
         self.bm25_ranker = BM25(self.index)
@@ -42,14 +49,41 @@ class EcoSearchEngine:
         self.multimodal = None
         if multimodal:
             self.multimodal = MultimodalSearch()
+            
+        docid_to_image = pickle.load(open(DOCID_TO_IMAGE_PATH, 'rb'))
+        
+        with open("data/training_set.csv", 'r', encoding='cp850') as f:
+            data = csv.reader(f)
+            train_docs = set()
+            for idx, row in tqdm(enumerate(data)):
+                if idx == 0:
+                    continue
+                train_docs.add(row[2])
+        
+        self.raw_text_dict = defaultdict()
+        file = gzip.open(DATASET_PATH, 'rt')
+        with jsonlines.Reader(file) as reader:
+            while True:
+                try:
+                    data = reader.read()
+                    if str(data['docid']) in train_docs:
+                        self.raw_text_dict[str(
+                            data['docid'])] = data['text'][:500]
+                except:
+                    break
+        pickle.dump(
+            self.raw_text_dict,
+            open(CACHE_PATH + 'raw_text_dict_train.pkl', 'wb')
+        )
+        self.cescorer = CrossEncoderScorer(self.raw_text_dict)
 
         # Learning-to-Rank
         self.l2r_ranker = None
         if use_l2r:
             self.l2r_feature_extractor = L2RFeatureExtractor(
-                self.index, None, None, self.tokenizer, self.stopwords, {}, {}
+                self.index, self.title_index, self.tokenizer, self.stopwords, self.cescorer, self.multimodal, doc_image_info=docid_to_image
             )
-            self.l2r_ranker = L2RRanker(self.index, None, self.tokenizer, self.stopwords, self.ranker, self.l2r_feature_extractor)
+            self.l2r_ranker = L2RRanker(self.index, self.title_index, self.tokenizer, self.stopwords, self.ranker, self.l2r_feature_extractor)
             self.load_or_train_l2r()
 
         print("Eco-Friendly Search Engine Initialized!")
@@ -69,10 +103,20 @@ class EcoSearchEngine:
         """Index documents using BasicInvertedIndex."""
         print("Indexing documents...")
         for doc in tqdm(self.dataset, desc="Indexing"):
-            text = doc.get('title', '') + ' ' + doc.get('description', '')
+            text = doc.get('description', '')
             tokens = self.tokenizer.tokenize(text)
             filtered_tokens = [t for t in tokens if t not in self.stopwords]
-            self.index.add_document(doc['asin'], filtered_tokens)
+            self.index.add_doc(doc['docid'], filtered_tokens)
+        print("Indexing complete.")
+        
+    def index_titles(self):
+        """Index documents using BasicInvertedIndex."""
+        print("Indexing titles...")
+        for doc in tqdm(self.dataset, desc="Indexing"):
+            text = doc.get('title', '')
+            tokens = self.tokenizer.tokenize(text)
+            filtered_tokens = [t for t in tokens if t not in self.stopwords]
+            self.title_index.add_doc(doc['docid'], filtered_tokens)
         print("Indexing complete.")
 
     def search(self, query, sort_by_price=False):
@@ -126,7 +170,7 @@ class EcoSearchEngine:
                 self.l2r_ranker = pickle.load(f)
         else:
             print("Training L2R model...")
-            training_data = "data/training_data.csv"  # Replace with actual training file path
+            training_data = "data/training_set.csv"  # Replace with actual training file path
             self.l2r_ranker.train(training_data)
             with open(model_path, 'wb') as f:
                 pickle.dump(self.l2r_ranker, f)
