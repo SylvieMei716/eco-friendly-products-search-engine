@@ -30,6 +30,11 @@ algorithm = initialize()
 pagination_cache = {}
 timer_mgr = {}
 
+doc_data = {
+    "1": {"image": "https://example.com/image1.jpg", "ecoFriendly": "High", "price": 25.99},
+    "2": {"image": "https://example.com/image2.jpg", "ecoFriendly": "Medium", "price": 15.49},
+}
+
 # Some global configurations
 PAGE_SIZE = 10
 CACHE_TIME = 3600
@@ -58,7 +63,18 @@ async def doSearch(body: QueryModel) -> APIResponse:
     sort_option = body.sort_option
     response = algorithm.search(request_query, sort_option)
     global pagination_cache
-    pagination_cache[request_query] = response
+    enriched_results = []
+    for res in response:
+        docid = res["docid"]
+        enriched_results.append({
+            "docid": docid,
+            "title": res["title"],
+            "extract": res["text"],
+            "image": doc_data.get(docid, {}).get("image", ""),
+            "ecoFriendly": doc_data.get(docid, {}).get("ecoFriendly", "Unknown"),
+            "price": doc_data.get(docid, {}).get("price", "N/A"),
+        })
+    pagination_cache[request_query] = enriched_results
     pagination_cache[f'{request_query}_max_page'] = math.floor(
         len(response) / PAGE_SIZE)
     global timer_mgr

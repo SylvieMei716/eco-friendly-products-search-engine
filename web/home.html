@@ -109,6 +109,30 @@
             transform: rotate(1800deg);
         }
     }
+
+    .result-item {
+        display: flex;
+        flex-direction: row;
+        margin-bottom: 20px;
+    }
+
+    .result-details {
+        flex: 1;
+        margin-left: 20px;
+    }
+
+    .eco-tag {
+        font-size: 12px;
+        color: green;
+        font-weight: bold;
+        margin-top: 10px;
+    }
+
+    .price-tag {
+        font-size: 14px;
+        color: #333;
+        margin-top: 10px;
+    }
 </style>
 
 <body>
@@ -172,9 +196,6 @@
     }
 
     async function fetchAmazonData(dict) {
-        // URL = `https://en.wikipedia.org/w/api.php?origin=*&action=query&format=json&redirects=1&prop=extracts&exintro&explaintext&pageids=${dict.docid}`
-        // result = await (await fetch(URL)).json()
-        // data = Object.values(result.query.pages)[0]
         return {
             docid: dict.docid,
             title: dict.title,
@@ -214,19 +235,43 @@
                 if (results.length > 0) {
                     const olElement = document.createElement('ul')
                     olElement.setAttribute('id', 'search-results')
-                    for (item of results) {
+                    for (let item of results) {
                         const liElement = document.createElement('li')
-                        const textNode = document.createElement('p')
+                        liElement.classList.add('result-item')
+
+                        const imageNode = document.createElement('img')
+                        imageNode.setAttribute('src', item.image_url)
+                        imageNode.setAttribute('alt', 'Product Image')
+                        imageNode.style.width = '100px'
+                        imageNode.style.height = 'auto'
+
+                        const detailsDiv = document.createElement('div')
+                        detailsDiv.classList.add('result-details')
+
                         const nameAnchor = document.createElement('a')
-                        const nameNode = document.createElement('p')
-                        nameAnchor.textContent = `${item.id}. ${item.title}`
+                        nameAnchor.textContent = `${item.title}`
                         nameAnchor.setAttribute('href', item.url)
                         nameAnchor.setAttribute('target', '_blank')
-                        nameNode.append(nameAnchor)
-                        textNode.textContent = item.text.slice(0, 250)+'...'
-                        liElement.append(nameNode)
-                        liElement.append(textNode)
-                        olElement.append(liElement)
+
+                        const textNode = document.createElement('p')
+                        textNode.textContent = item.text.slice(0, 250) + '...'
+
+                        const ecoTag = document.createElement('p')
+                        ecoTag.classList.add('eco-tag')
+                        ecoTag.textContent = `Eco-friendliness: ${item.eco_friendly}`
+
+                        const priceTag = document.createElement('p')
+                        priceTag.classList.add('price-tag')
+                        priceTag.textContent = `Price: $${item.price}`
+
+                        detailsDiv.appendChild(nameAnchor)
+                        detailsDiv.appendChild(textNode)
+                        detailsDiv.appendChild(ecoTag)
+                        detailsDiv.appendChild(priceTag)
+
+                        liElement.appendChild(imageNode)
+                        liElement.appendChild(detailsDiv)
+                        olElement.appendChild(liElement)
                     }
                     noResNode = document.getElementById('no-res-text')
                     oldNode = document.getElementById('search-results')
