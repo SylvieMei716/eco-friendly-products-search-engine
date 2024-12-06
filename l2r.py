@@ -258,7 +258,7 @@ class L2RFeatureExtractor:
     def __init__(self, document_index: InvertedIndex, title_index: InvertedIndex,
                 #  doc_category_info: dict[int, list[str]],
                  document_preprocessor: Tokenizer, stopwords: set[str],
-                 recognized_categories: set[str], #docid_to_network_features: dict[int, dict[str, float]],
+                 # recognized_categories: set[str], #docid_to_network_features: dict[int, dict[str, float]],
                  ce_scorer: CrossEncoderScorer, multimodal: MultimodalSearch, 
                  doc_image_info: dict[int, str], keywords: str) -> None:
         """
@@ -283,7 +283,7 @@ class L2RFeatureExtractor:
         # self.doc_category_info = doc_category_info
         self.document_preprocessor = document_preprocessor
         self.stopwords = stopwords
-        self.recognized_categories = list(recognized_categories)
+        # self.recognized_categories = list(recognized_categories)
         # self.docid_to_network_features = docid_to_network_features
         self.ce_scorer = ce_scorer
         self.multimodal = multimodal
@@ -518,7 +518,7 @@ class L2RFeatureExtractor:
     # TODO: Add at least one new feature to be used with your L2R model
 
     def generate_features(self, docid: int, doc_word_counts: dict[str, int],
-                          title_word_counts: dict[str, int], query_parts: list[str], image_url: str) -> list:
+                          title_word_counts: dict[str, int], query_parts: list[str]) -> list:
         """
         Generates a dictionary of features for a given document and query.
 
