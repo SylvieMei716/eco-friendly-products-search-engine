@@ -72,7 +72,7 @@ class MultimodalSearch:
         """
         return self.model.encode(texts)
 
-    def compute_similarity(self, image_url: str, texts: list[str]):
+    def compute_similarity(self, image_url: str, texts: list[str]) -> list[float]:
         """
         Compute the cosine similarity between an image and a list of text descriptions.
         

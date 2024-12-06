@@ -55,7 +55,8 @@ async def home():
 @app.post('/search')
 async def doSearch(body: QueryModel) -> APIResponse:
     request_query = body.query
-    response = algorithm.search(request_query)
+    sort_option = body.sort_option
+    response = algorithm.search(request_query, sort_option)
     global pagination_cache
     pagination_cache[request_query] = response
     pagination_cache[f'{request_query}_max_page'] = math.floor(
