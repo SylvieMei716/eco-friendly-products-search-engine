@@ -1,5 +1,5 @@
 '''
-Edited by Lindsey Dye
+Edited by Lindsey Dye, Sylvie Mei
 
 Author: Prithvijit Dasgupta
 
