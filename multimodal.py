@@ -57,7 +57,7 @@ class MultimodalSearch:
         """
         image = self.get_image(image_url)
         if image is None:
-            raise ValueError("Failed to load the image. Please check the URL.")
+            raise ValueError(f"Failed to load the image. Please check the URL {image_url}")
         return self.model.encode(image)
 
     def encode_text(self, texts: list[str]):

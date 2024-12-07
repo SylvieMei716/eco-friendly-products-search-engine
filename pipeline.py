@@ -81,7 +81,8 @@ class EcoSearchEngine:
         self.l2r_ranker = None
         if use_l2r:
             self.l2r_feature_extractor = L2RFeatureExtractor(
-                self.index, self.title_index, self.tokenizer, self.stopwords, self.cescorer, self.multimodal, doc_image_info=docid_to_image
+                self.index, self.title_index, self.tokenizer, self.stopwords, self.cescorer, self.multimodal, doc_image_info=docid_to_image, 
+                keywords='sustainable organic biodegradable recyclable compostable recycled non-toxic renewable plant-based vegan low-impact zero-waste green cruelty-free FSC-certified carbon-neutral Energy Star Fair Trade eco-conscious climate-positive upcycled responsibly sourced energy-efficient plastic-free pesticide-free natural ethical eco-label water-saving low-carbon toxin-free green-certified eco-safe'
             )
             self.l2r_ranker = L2RRanker(self.index, self.title_index, self.tokenizer, self.stopwords, self.ranker, self.l2r_feature_extractor)
             self.load_or_train_l2r()
