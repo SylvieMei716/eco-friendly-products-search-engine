@@ -494,6 +494,7 @@ class L2RFeatureExtractor:
     
     # CLIP score
     def get_clip_score(self, docid: int, query: str) -> list[float]:
+        print(docid)
         return self.multimodal.compute_similarity(self.doc_image_info.get(docid, ""), [query])
     
     #Calculate TF IDF with title index of products and keywords

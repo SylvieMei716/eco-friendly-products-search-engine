@@ -1,21 +1,17 @@
+"""
+This file is to implement CLIP method to calculate the similarity 
+between query and item image.
+
+Date: Dec 2, 2024
+Author: Sylvie Mei
+"""
+
 import torch
 from sentence_transformers import SentenceTransformer, util
 from PIL import Image
 import requests
 from io import BytesIO
-
-# model = SentenceTransformer('clip-ViT-B-32')
-
-# def get_image(url):
-#     return Image.open(requests.get(url, stream=True).raw)
-
-# doc1_img_emb = model.encode(get_image('https://m.media-amazon.com/images/I/31TgqAZ8kQL.jpg'))
-
-# text_emb = model.encode(['plunger bars'])
-
-# cos_scores = util.cos_sim(doc1_img_emb, text_emb)
-# print(cos_scores)
-
+import numpy as np
 
 class MultimodalSearch:
     def __init__(self, model_name: str = 'clip-ViT-B-32') -> None:
@@ -37,6 +33,8 @@ class MultimodalSearch:
         Returns:
         - PIL.Image.Image: The loaded image.
         """
+        if url == "":
+            return None
         try:
             response = requests.get(url, stream=True)
             response.raise_for_status()
@@ -57,7 +55,8 @@ class MultimodalSearch:
         """
         image = self.get_image(image_url)
         if image is None:
-            raise ValueError(f"Failed to load the image. Please check the URL {image_url}")
+            # raise ValueError(f"Failed to load the image. Please check the URL {image_url}")
+            return np.array([0.0])
         return self.model.encode(image)
 
     def encode_text(self, texts: list[str]):
@@ -85,25 +84,11 @@ class MultimodalSearch:
         """
         image_emb = self.encode_image(image_url)
         text_emb = self.encode_text(texts)
+        if np.array_equal(image_emb, np.array([0.0])):
+        # If the image embedding is invalid, return a list of zeros for each text description
+            image_emb = np.zeros_like(text_emb)
+            print(image_emb)
+            print(len(text_emb))
+        
         cos_scores = util.cos_sim(image_emb, text_emb)
         return cos_scores.tolist()
-
-# Example usage
-if __name__ == "__main__":
-    # Initialize the multimodal search
-    search = MultimodalSearch(device="cuda" if torch.cuda.is_available() else "cpu")
-    
-    # Example query and image URLs
-    query = "eco-friendly beauty product"
-    image_urls = [
-        "https://m.media-amazon.com/images/I/71i77AuI9xL._SL1500_.jpg",
-        "https://m.media-amazon.com/images/I/41qfjSfqNyL.jpg",
-        "https://m.media-amazon.com/images/I/41w2yznfuZL.jpg"
-    ]  # Replace with your actual image URLs
-    
-    # Rank the images by their similarity to the query
-    results = search.rank_images(query, image_urls)
-    
-    # Print the ranked results
-    for image_url, similarity in results:
-        print(f"Image URL: {image_url}, Similarity: {similarity:.4f}")
