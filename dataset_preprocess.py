@@ -50,7 +50,8 @@ ecofriendly_keywords = ['sustainable', 'organic', 'biodegradable', 'recyclable',
                         'climate-positive', 'upcycled', 'responsibly sourced', 
                         'energy-efficient', 'plastic-free', 'pesticide-free', 
                         'natural', 'ethical', 'eco-label', 'water-saving', 
-                        'low-carbon', 'toxin-free', 'green-certified', 'eco-safe']
+                        'low-carbon', 'toxin-free', 'green-certified', 'eco-safe', 
+                        'stainless steel', 'chemical-free', 'sulfate-free', 'paraben-free']
 nonfriendly_keywords = ['non-recyclable', 'disposable', 'single-use']
 
 class DatasetPreprocessor:
@@ -198,7 +199,8 @@ class DatasetPreprocessor:
                 break
             description = data.get('description', '')
             sentiment = sentiment_analyzer(description[:512])  # Truncate description to fit model input size
-            data['eco_friendly'] = sentiment[0]['label'] == 'LABEL_1'
+            data['eco_friendly'] = sentiment[0]['label'] == 'POSITIVE'
+            # print(data['eco_friendly'])
             updated_data.append(data)
 
         with gzip.open(sentiment_filtered_path, 'wt') as outfile:
@@ -216,8 +218,8 @@ def main():
         dataset_preprocessor.filter_eco_keywords(eco_keywords=ecofriendly_keywords, noneco_keywords=nonfriendly_keywords)
     if not os.path.exists('./fine_tuned_model'):
         dataset_preprocessor.fine_tune()
-    if not os.path.exists('data/sentiment_labeled.jsonl.gz'):
-        dataset_preprocessor.filter_eco_sentiment()
+    # if not os.path.exists('data/sentiment_labeled.jsonl.gz'):
+    dataset_preprocessor.filter_eco_sentiment()
 
 if __name__ == '__main__':
     main()
