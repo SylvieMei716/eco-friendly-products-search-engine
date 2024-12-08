@@ -168,6 +168,13 @@ class L2RRanker:
         # TODO: Return a prediction made using the LambdaMART model
         return self.model.predict(X)
         pass
+    
+    def save(self, filename):
+        """
+        Saves the trained LambdaMART model. Filename must be have an extension of '.lmart'.
+        """
+        self.model.save(filename)
+        return None
 
     def query(self, query: str, doc_price_info: dict[int, float], pseudofeedback_num_docs=0, pseudofeedback_alpha=0.8,
               pseudofeedback_beta=0.2, user_id=None) -> list[tuple[int, float]]:
@@ -590,7 +597,9 @@ class L2RFeatureExtractor:
         # feature_vector.append(title_query_overlap_count / len(query_parts))
         
         # CLIP score
-        feature_vector.append(self.get_clip_score(docid, " ".join(query_parts)))
+        clip_score = self.get_clip_score(docid, " ".join(query_parts))
+        for c in clip_score:
+            feature_vector.append(c[0])
 
         #keyword tfidf feature
         feature_vector.append(self.get_tf_idf_keyword(self.document_index, docid, doc_word_counts, self.keyword_dict, self.keyword_parts))
@@ -663,5 +672,3 @@ class LambdaMART:
         # TODO: Generating the predicted values using the LGBMRanker
         return self.model.predict(featurized_docs)
         pass
-
-
