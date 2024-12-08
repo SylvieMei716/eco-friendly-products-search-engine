@@ -14,39 +14,7 @@ import numpy as np
 import pandas as pd
 
 
-# TODO (HW5): Implement NFaiRR
-def nfairr_score(actual_omega_values: list[int], cut_off=200) -> float:
-    """
-    Computes the normalized fairness-aware rank retrieval (NFaiRR) score for a list of omega values
-    for the list of ranked documents.
-    If all documents are from the protected class, then the NFaiRR score is 0.
-
-    Args:
-        actual_omega_values: The omega value for a ranked list of documents
-            The most relevant document is the first item in the list.
-        cut_off: The rank cut-off to use for calculating NFaiRR
-            Omega values in the list after this cut-off position are not used. The default is 200.
-
-    Returns:
-        The NFaiRR score
-    """
-    # TODO (HW5): Compute the FaiRR and IFaiRR scores using the given list of omega values
-    fairr = 0
-    ifairr = 0
-    if cut_off==0:
-        return 0
-    else:
-        actual_omega_values = actual_omega_values[0:cut_off]
-        ideal_omega_vals = sorted(actual_omega_values, reverse=True)
-
-        l = len(actual_omega_values)
-        log2i = np.log2(range(2, l + 1))
-        fairr = actual_omega_values[0] + (actual_omega_values[1:] / log2i).sum()
-        ifairr = ideal_omega_vals[0] + (ideal_omega_vals[1:]/log2i).sum()
-        nfairr = fairr/ifairr
-        return nfairr
-
-
+import pandas as pd
 def map_score(search_result_relevances: list[int], cut_off: int) -> float:
     """
     Calculates the mean average precision score given a list of labeled search results, where
@@ -113,8 +81,7 @@ def ndcg_score(search_result_relevances: list[float],
     return ndcg
 
 def f1_score(binary_relevances, actual_relevances, relevant_docs):
-    """
-    Calculates the F1 score given binary relevances, the ranked documents' list, and all relevant documents. (i.e.,
+    """Calculates the F1 score given binary relevances, the ranked documents' list, and all relevant documents. (i.e.,
     documents with relevance of/above 4 among the annotated documents of a given query). 
     F1 score = 2*(Precision*Recall)/(Precision+Recall)
     
@@ -126,10 +93,9 @@ def f1_score(binary_relevances, actual_relevances, relevant_docs):
             for a given query.
             
     Returns:
-        F1 score)
-    """
+        F1 score"""
     # Calculate recall
-    recall_docs = sum(1 for doc,_ in actual_relevances if doc in relevant_docs)
+    recall_docs = sum(1 for doc,_,_ in actual_relevances if doc in relevant_docs)
     if len(relevant_docs)!=0:
         recall = recall_docs / len(relevant_docs)
     else:
@@ -173,6 +139,8 @@ def run_relevance_tests(relevance_data_filename: str, ranker) -> dict[str, float
     f1_scores = []
     
     for i, (query, group) in enumerate(grouped):
+        #if i>10:
+            #break
        
         docs = group['docid'].tolist()
         rels = group['rel'].tolist()
@@ -181,11 +149,11 @@ def run_relevance_tests(relevance_data_filename: str, ranker) -> dict[str, float
         docid_to_rel = {docid: rel for docid, rel in zip(docs, rels)}
         
         
-        ranked_docs = ranker.query(query)[:cut_off]
+        ranked_docs = ranker.query(query,docid_to_price)[:cut_off]
         
-        binary_rels = [1 if docid_to_rel.get(doc, 0) >= 4 else 0 for doc, _ in ranked_docs]
+        binary_rels = [1 if docid_to_rel.get(doc, 0) >= 4 else 0 for doc,_,_ in ranked_docs]
         
-        actual_rels = [docid_to_rel.get(doc, 0) for doc, _ in ranked_docs]
+        actual_rels = [docid_to_rel.get(doc, 0) for doc,_,_ in ranked_docs]
         
         #Making a list of relevant docs for given query to calculate recall
         relevant_docs_ = []
@@ -212,51 +180,3 @@ def run_relevance_tests(relevance_data_filename: str, ranker) -> dict[str, float
     #'f1_list': f1_scores
 
     return {'map': avg_map, 'ndcg': avg_ndcg, 'f1_score': avg_f1_score, 'map_list': map_scores, 'ndcg_list': ndcg_scores, 'f1_list': f1_scores}
-
-
-# TODO (HW5): Implement NFaiRR metric for a list of queries to measure fairness for those queries
-# NOTE: This has no relation to relevance scores and measures fairness of representation of classes
-def run_fairness_test(attributes_file_path: str, protected_class: str, queries: list[str],
-                      ranker, cut_off: int = 200) -> float:
-    """
-    Measures the fairness of the IR system using the NFaiRR metric.
-
-    Args:
-        attributes_file_path: The filename containing the documents about people and their demographic attributes
-        protected_class: A specific protected class (e.g., Ethnicity, Gender)
-        queries: A list containing queries
-        ranker: A ranker configured with a particular scoring function to search through the document collection
-        cut_off: The rank cut-off to use for calculating NFaiRR
-
-    Returns: 
-        The average NFaiRR score across all queries
-    """
-    # TODO (HW5): Load person-attributes.csv
-    df = pd.read_csv(attributes_file_path)
-    attributes = df[protected_class]
-    assc_docs = df['docid']
-    omega_vals = []
-    score = []
-
-    query_to_docs = {}
-    for query in queries:
-        doc_list = ranker.query(query)
-        query_to_docs[query] = doc_list
-        for doc in doc_list:
-            if doc in assc_docs and df.loc[df['docid'] == doc, protected_class].iloc[0]:
-                omega_vals.append(0)
-            else:
-                omega_vals.append(1)
-        score.append(nfairr_score(omega_vals))
-
-    # TODO (HW5): Find the documents associated with the protected class
-
-    # TODO (HW5): Loop through the queries and
-    #       1. Create the list of omega values for the ranked list.
-    #       2. Compute the NFaiRR score
-    # NOTE: This fairness metric has some 'issues' (and the assignment spec asks you to think about it)
-
-    return score
-    
-if __name__ == '__main__':
-    pass
