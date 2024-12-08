@@ -171,9 +171,9 @@ class L2RRanker:
     
     def save(self, filename):
         """
-        Saves the trained LambdaMART model. Filename must be have an extension of '.lmart'.
+        Saves the trained LambdaMART model. Filename must be have an extension of '.pkl'.
         """
-        self.model.save(filename)
+        pickle.dump(self.model, open(filename, 'wb'))
         return None
 
     def query(self, query: str, doc_price_info: dict[int, float], pseudofeedback_num_docs=0, pseudofeedback_alpha=0.8,
