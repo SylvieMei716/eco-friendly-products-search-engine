@@ -593,7 +593,7 @@ class L2RFeatureExtractor:
         feature_vector.append(self.get_clip_score(docid, " ".join(query_parts)))
 
         #keyword tfidf feature
-        feature_vector.append(self.get_tf_idf_keyword(self.title_index, docid, title_word_counts, self.keyword_dict, self.keyword_parts))
+        feature_vector.append(self.get_tf_idf_keyword(self.document_index, docid, doc_word_counts, self.keyword_dict, self.keyword_parts))
 
         # TODO: Calculate the Document Categories features.
         # for cate in self.get_document_categories(docid):
