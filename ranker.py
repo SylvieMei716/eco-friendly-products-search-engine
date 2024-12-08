@@ -471,8 +471,8 @@ class CrossEncoderScorer:
             cross_encoder_model_name: The name of a cross-encoder model
         """
         # TODO: Save any new arguments that are needed as fields of this class
+        self.model = CrossEncoder(cross_encoder_model_name, max_length=512)
         self.raw_text_dict = raw_text_dict
-        self.cross_encoder_model = CrossEncoder(cross_encoder_model_name)
 
     def score(self, docid: int, query: str) -> float:
         """
@@ -487,14 +487,17 @@ class CrossEncoderScorer:
         """
         # NOTE: Do not forget to handle an edge case
         # (e.g., docid does not exist in raw_text_dict or empty query, both should lead to 0 score)
-        if docid not in self.raw_text_dict or not query:
-            return 0
 
         # NOTE: unlike the other scorers like BM25, this method takes in the query string itself,
         # not the tokens!
 
         # TODO (HW3): Get a score from the cross-encoder model
         #             Refer to IR_Encoder_Examples.ipynb in Demos folder on Canvas if needed
-        document_text = self.raw_text_dict[docid]
-        score = self.cross_encoder_model.predict([(query, document_text)])[0]
-        return score
+        if len(query)==0:
+            return 0
+        if docid not in self.raw_text_dict:
+            return 0
+        else:
+            pair = (query, self.raw_text_dict[docid])
+            score = self.model.predict(pair)
+            return score
