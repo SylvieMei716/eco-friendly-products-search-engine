@@ -36,6 +36,7 @@ DOCID_TO_LINK_PATH = CACHE_PATH + 'docid_to_link.pkl'
 DOCID_TO_IMAGE_PATH = CACHE_PATH + 'docid_to_image.pkl'
 DOCID_TO_ASIN_PATH = CACHE_PATH + 'docid_to_asin.pkl'
 DOCID_TO_DESC_PATH = CACHE_PATH + 'docid_to_desc.pkl'
+DOCID_TO_ECOLABEL_PATH = CACHE_PATH + 'docid_to_ecolabel.pkl'
 
 DATASET_PATHS = [BEAUTY_PATH, FASHION_PATH]
 KEYS_TO_KEEP = ["main_category", "title", "average_rating", 
@@ -191,12 +192,12 @@ class DatasetPreprocessor:
             lines = infile.readlines()
 
         updated_data = []
-        count = 0
+        # count = 0
         for line in tqdm(lines):
             data = json.loads(line)
-            count += 1
-            if count > 20000:
-                break
+            # count += 1
+            # if count > 20000:
+            #     break
             description = data.get('description', '')
             sentiment = sentiment_analyzer(description[:512])  # Truncate description to fit model input size
             data['eco_friendly'] = sentiment[0]['label'] == 'POSITIVE'
@@ -208,7 +209,7 @@ class DatasetPreprocessor:
                 outfile.write(json.dumps(data) + '\n')
 
         print(f"Sentiment-based eco-friendliness labeling completed and updated in {sentiment_filtered_path}")
-    
+
     
 def main():
     dataset_preprocessor = DatasetPreprocessor(DATASET_PATHS, COMBINE_PATH, KEYS_TO_KEEP)
@@ -218,8 +219,15 @@ def main():
         dataset_preprocessor.filter_eco_keywords(eco_keywords=ecofriendly_keywords, noneco_keywords=nonfriendly_keywords)
     if not os.path.exists('./fine_tuned_model'):
         dataset_preprocessor.fine_tune()
-    # if not os.path.exists('data/sentiment_labeled.jsonl.gz'):
-    dataset_preprocessor.filter_eco_sentiment()
+    if not os.path.exists('data/sentiment_labeled.jsonl.gz'):
+        dataset_preprocessor.filter_eco_sentiment()
+        
+    docid_to_ecolabel = {}
+    with gzip.open('data/sentiment_labeled.jsonl.gz', mode = 'rt', newline = '') as f:
+        for line in f:
+            data = json.loads(line)
+            docid_to_ecolabel[data['docid']] = data['eco_friendly']
+    pickle.dump(docid_to_ecolabel, open(DOCID_TO_ECOLABEL_PATH, 'wb'))
 
 if __name__ == '__main__':
     main()

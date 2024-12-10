@@ -148,9 +148,14 @@
             <div class="left-pad"></div>
             <div class="page-mid">
                 <div class="search-box">
-                    <h3 style="width: 13%;">Search query: </h3>
-                    <input style="width: 70%; padding: 10px; height:fit-content; margin-top: 10px;" type="text"
+                    <h3 style="width: 20%;">Search query: </h3>
+                    <input style="width: 40%; padding: 10px; height:fit-content; margin-top: 10px;" type="text"
                         id="query" />
+                        <label for="sort-option" style="width: 10%;height: fit-content; margin-top: 25px;">Sort by:</label>
+                        <select id="sort-option" style="width: 20%; padding: 10px; height: fit-content; margin-top: 10px;">
+                            <option value="relevance">Relevance</option>
+                            <option value="relevance_and_rating">Relevance & Rating</option>
+                        </select>
                     <div style="width: 17%;">
                         <button class="pure-button pure-button-primary" style="margin-top: 8%; margin-left: 10%;"
                             onclick="doSearch('/search', 'POST')">Search!</button>

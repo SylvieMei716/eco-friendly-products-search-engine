@@ -33,7 +33,8 @@ class Ranker:
         self.stopwords = stopwords
         self.raw_text_dict = raw_text_dict
 
-    def query(self, query: str, doc_price_info: dict[int, float], pseudofeedback_num_docs=0, pseudofeedback_alpha=0.8,
+    def query(self, query: str, doc_rating_info: dict[int, float], 
+              pseudofeedback_num_docs=0, pseudofeedback_alpha=0.8,
               pseudofeedback_beta=0.2) -> list[tuple[int, float]]:
         """
         Searches the collection for relevant documents to the query and
@@ -50,16 +51,6 @@ class Ranker:
 
         Returns:
             A sorted list containing tuples of the document id and its relevance score
-
-        # TODO (HW4): If the user has indicated we should use feedback,
-        #  create the pseudo-document from the specified number of pseudo-relevant results.
-        #  This document is the cumulative count of how many times all non-filtered words show up
-        #  in the pseudo-relevant documents. See the equation in the write-up. Be sure to apply the same
-        #  token filtering and normalization here to the pseudo-relevant documents.
-
-        # TODO (HW4): Combine the document word count for the pseudo-feedback with the query to create a new query
-        # NOTE (HW4): Since you're using alpha and beta to weight the query and pseudofeedback doc, the counts
-        #  will likely be *fractional* counts (not integers) which is ok and totally expected.
 
         """
         if query == "":
@@ -86,8 +77,8 @@ class Ranker:
         initial_scores = []
         for doc_id in possible_docs:
             score = self.scorer.score(doc_id, doc_word_counts[doc_id], query_word_counts)
-            price = doc_price_info.get(doc_id, 0)
-            initial_scores.append((doc_id, score, price))
+            rating = doc_rating_info.get(doc_id, 0)
+            initial_scores.append((doc_id, score, rating))
             
         initial_scores = sorted(initial_scores, key=lambda x:x[1],reverse=True)
         
@@ -131,14 +122,13 @@ class Ranker:
             doc_scores = []
             for doc_id in possible_docs:
                 score = self.scorer.score(doc_id, doc_word_counts[doc_id], adjusted_query_vector)
-                price = doc_price_info.get(doc_id, 0)
-                doc_scores.append((doc_id, score, price))
+                rating = doc_rating_info.get(doc_id, 0)
+                doc_scores.append((doc_id, score, rating))
             doc_scores = sorted(doc_scores, key=lambda x: x[1], reverse=True)
             # print("returning updated scores", doc_scores[:5])
                 
         # 4. Return **sorted** results as format [(100, 0.5), (10, 0.2), ...]
             return doc_scores
-        # print("returning initial scores", initial_scores[:5])
         
         return initial_scores
 

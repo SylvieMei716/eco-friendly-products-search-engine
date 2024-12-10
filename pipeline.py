@@ -1,9 +1,17 @@
+"""
+This file is the pipeline to run the search.
+
+Authors: Lindsey Dye, Sylvie Mei
+"""
 import os
 import gzip
 import jsonlines
 import pickle
 from collections import defaultdict
 from tqdm import tqdm
+import time
+import requests
+import random
 
 from document_preprocessor import RegexTokenizer
 from indexing import Indexer, IndexType, BasicInvertedIndex
@@ -18,6 +26,10 @@ CACHE_PATH = './__pycache__/'
 STOPWORD_PATH = DATA_PATH + 'stopwords.txt'
 DATASET_PATH = DATA_PATH + 'Beauty_and_Fashion.jsonl.gz'
 DOCID_TO_IMAGE_PATH = CACHE_PATH + 'docid_to_image.pkl'
+DOCID_TO_PRICE_PATH = CACHE_PATH + 'docid_to_price.pkl'
+DOCID_TO_RATING_PATH = CACHE_PATH + 'docid_to_rating.pkl'
+DOCID_TO_ECOLABEL_PATH = CACHE_PATH + 'docid_to_ecolabel.pkl'
+DOCID_TO_LINK_PATH = CACHE_PATH + 'docid_to_link.pkl'
 TITLE_INDEX = 'title_index'
 
 class EcoSearchEngine:
@@ -50,7 +62,11 @@ class EcoSearchEngine:
         if multimodal:
             self.multimodal = MultimodalSearch()
             
-        docid_to_image = pickle.load(open(DOCID_TO_IMAGE_PATH, 'rb'))
+        self.docid_to_image = pickle.load(open(DOCID_TO_IMAGE_PATH, 'rb'))
+        self.docid_to_price = pickle.load(open(DOCID_TO_PRICE_PATH, 'rb'))
+        self.docid_to_rating = pickle.load(open(DOCID_TO_RATING_PATH, 'rb'))
+        self.docid_to_ecolabel = pickle.load(open(DOCID_TO_ECOLABEL_PATH, 'rb'))
+        self.docid_to_link = pickle.load(open(DOCID_TO_LINK_PATH, 'rb'))
         
         with open("data/training_set.csv", 'r', encoding='cp850') as f:
             data = csv.reader(f)
@@ -81,7 +97,7 @@ class EcoSearchEngine:
         self.l2r_ranker = None
         if use_l2r:
             self.l2r_feature_extractor = L2RFeatureExtractor(
-                self.index, self.title_index, self.tokenizer, self.stopwords, self.cescorer, self.multimodal, doc_image_info=docid_to_image, 
+                self.index, self.title_index, self.tokenizer, self.stopwords, self.cescorer, self.multimodal, doc_image_info=self.docid_to_image, 
                 keywords='sustainable organic biodegradable recyclable compostable recycled non-toxic renewable plant-based vegan low-impact zero-waste green cruelty-free FSC-certified carbon-neutral Energy Star Fair Trade eco-conscious climate-positive upcycled responsibly sourced energy-efficient plastic-free pesticide-free natural ethical eco-label water-saving low-carbon toxin-free green-certified eco-safe'
             )
             self.l2r_ranker = L2RRanker(self.index, self.title_index, self.tokenizer, self.stopwords, self.ranker, self.l2r_feature_extractor)
@@ -120,47 +136,76 @@ class EcoSearchEngine:
             self.title_index.add_doc(doc['docid'], filtered_tokens)
         print("Indexing complete.")
 
-    def search(self, query, sort_by_price=False):
+    def check_amazon_item_exists(self, url):
+        """Check if the item link is still valid."""
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+        time.sleep(random.uniform(2, 5))
+        response = requests.get(url, headers=headers)
+
+        if response.status_code == 200:
+            if "currently unavailable" in response.text or "couldn't find that page" in response.text:
+                return False
+            else:
+                return True
+        elif response.status_code == 404:
+            return False
+        else:
+            return False
+
+    def search(self, query, sort_by_rating=False):
         """Perform a search query."""
         print(f"Searching for: {query}")
         tokens = self.tokenizer.tokenize(query)
         filtered_tokens = [t for t in tokens if t not in self.stopwords]
-        results = self.ranker.rank(filtered_tokens)
+        results = self.ranker.query(" ".join(filtered_tokens), self.docid_to_rating)
 
         # Enrich results with metadata
         enriched_results = []
         for result in results:
-            doc = next((d for d in self.dataset if d['asin'] == result[0]), {})
+            doc = next((d for d in self.dataset if d['docid'] == result[0]), {})
             enriched_results.append({
-                "id": result[0],
+                "docid": result[0],
                 "title": doc.get("title", "Unknown"),
                 "description": doc.get("description", "No description available"),
                 "score": result[1],
                 "price": doc.get("price", "N/A"),
-                "eco_friendly": self.tag_eco_friendly(doc),
-                "image": doc.get("image", ""),
+                "eco_friendly": self.docid_to_ecolabel.get(result[0], "Unknown"),
+                "image": self.docid_to_image.get(result[0], ""),
+                "avg_rating": doc.get("average_rating", 0),
             })
 
-        # Sort results by price if requested
-        if sort_by_price:
-            enriched_results = sorted(enriched_results, key=lambda x: x.get("price", float('inf')))
+        # Sort results by relevance and rating if requested
+        if sort_by_rating:
+            RATING_WEIGHT = 0.3
+            enriched_results = sorted(enriched_results, key=lambda x: x["score"]*(1-RATING_WEIGHT) + x["avg_rating"]*0.1*RATING_WEIGHT, reverse=True)
+        
+        # Ensure the items in the first page have valid link
+        print("Checking the link for the first page...")
+        valid_url_cnt = 0
+        for i in range(min(10, len(enriched_results))):
+            result = enriched_results[i]
+            if not self.check_amazon_item_exists(self.docid_to_link.get(result['docid'])):
+                enriched_results.pop(i)
+                valid_url_cnt += 1
+                break
+                
         
         return enriched_results
 
-    def tag_eco_friendly(self, doc):
-        """Tag products as eco-friendly or not based on keywords."""
-        eco_keywords = ['sustainable', 'organic', 'biodegradable', 'recyclable', 'compostable']
-        non_eco_keywords = ['non-recyclable', 'disposable', 'single-use']
-        title = doc.get("title", "").lower()
-        description = doc.get("description", "").lower()
+    # def tag_eco_friendly(self, doc):
+    #     """Tag products as eco-friendly or not based on keywords."""
+    #     eco_keywords = ['sustainable', 'organic', 'biodegradable', 'recyclable', 'compostable']
+    #     non_eco_keywords = ['non-recyclable', 'disposable', 'single-use']
+    #     title = doc.get("title", "").lower()
+    #     description = doc.get("description", "").lower()
         
-        for keyword in eco_keywords:
-            if keyword in title or keyword in description:
-                return "Eco-Friendly"
-        for keyword in non_eco_keywords:
-            if keyword in title or keyword in description:
-                return "Not Eco-Friendly"
-        return "Uncertain"
+    #     for keyword in eco_keywords:
+    #         if keyword in title or keyword in description:
+    #             return "Eco-Friendly"
+    #     for keyword in non_eco_keywords:
+    #         if keyword in title or keyword in description:
+    #             return "Not Eco-Friendly"
+    #     return "Uncertain"
 
     def load_or_train_l2r(self):
         """Load or train the Learning-to-Rank model."""
@@ -179,3 +224,14 @@ class EcoSearchEngine:
 # Initialize function for app.py
 def initialize():
     return EcoSearchEngine(max_docs=1000, use_l2r=True, multimodal=True)
+
+
+def main():
+    search_obj = EcoSearchEngine(max_docs=-1, use_l2r=True, multimodal=True)
+    query = "women maxi dress"
+    results = search_obj.search(query, sort_by_rating=False)
+    print(results[:5])
+
+
+if __name__ == '__main__':
+    main()

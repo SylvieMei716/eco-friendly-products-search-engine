@@ -73,6 +73,7 @@ async def doSearch(body: QueryModel) -> APIResponse:
             "image": doc_data.get(docid, {}).get("image", ""),
             "ecoFriendly": doc_data.get(docid, {}).get("ecoFriendly", "Unknown"),
             "price": doc_data.get(docid, {}).get("price", "N/A"),
+            "avg_rating": doc_data.get(docid, {}).get("average_rating", "N/A"),
         })
     pagination_cache[request_query] = enriched_results
     pagination_cache[f'{request_query}_max_page'] = math.floor(

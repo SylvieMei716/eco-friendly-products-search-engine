@@ -9,7 +9,7 @@ from document_preprocessor import Tokenizer
 from ranker import Ranker, TF_IDF, BM25, PivotedNormalization, CrossEncoderScorer
 from multimodal import *
 import csv
-
+import pickle
 
 # TODO: scorer has been replaced with ranker in initialization, check README for more details
 class L2RRanker:
@@ -176,7 +176,7 @@ class L2RRanker:
         pickle.dump(self.model, open(filename, 'wb'))
         return None
 
-    def query(self, query: str, doc_price_info: dict[int, float], pseudofeedback_num_docs=0, pseudofeedback_alpha=0.8,
+    def query(self, query: str, doc_rating_info: dict[int, float], pseudofeedback_num_docs=0, pseudofeedback_alpha=0.8,
               pseudofeedback_beta=0.2, user_id=None) -> list[tuple[int, float]]:
         """
         Retrieves potentially-relevant documents, constructs feature vectors for each query-document pair,
@@ -230,7 +230,7 @@ class L2RRanker:
         #       This ordering determines which documents we will try to *re-rank* using our L2R model
         # TODO: (HW4) support pseudofeedback arguments for the initial ranking
         # bm25 = self.scorer
-        relevant_docs = self.scorer.query(query, doc_price_info, pseudofeedback_num_docs, pseudofeedback_alpha, pseudofeedback_beta)
+        relevant_docs = self.scorer.query(query, doc_rating_info, pseudofeedback_num_docs, pseudofeedback_alpha, pseudofeedback_beta)
         
         # vector_ranker = self.scorer
         # relevant_docs = vector_ranker.query(query, pseudofeedback_num_docs, pseudofeedback_alpha, pseudofeedback_beta)
@@ -241,7 +241,7 @@ class L2RRanker:
 
         # TODO: Construct the feature vectors for each query-document pair in the top 100
         X_top_100 = []
-        for top_doc_id, top_doc_score, top_doc_price in top_100_docs:
+        for top_doc_id, top_doc_score, top_doc_rating in top_100_docs:
             feature_vector = self.feature_extractor.generate_features(top_doc_id, doc_word_counts, title_word_counts, query_parts)
             X_top_100.append(feature_vector)
 
@@ -297,12 +297,6 @@ class L2RFeatureExtractor:
         self.doc_image_info = doc_image_info
         self.keyword_parts = document_preprocessor.tokenize(keywords)
         self.keyword_dict = Counter(self.keyword_parts)
-
-        # TODO: For the recognized categories (i.e,. those that are going to be features), consider
-        #       how you want to store them here for faster featurizing
-
-        # TODO (HW2): Initialize any RelevanceScorer objects you need to support the methods below.
-        #             Be sure to use the right InvertedIndex object when scoring
 
     # TODO: Article Length
     def get_article_length(self, docid: int) -> int:
@@ -418,71 +412,6 @@ class L2RFeatureExtractor:
         return pivotNormalization.score(docid, doc_word_counts, query_word_counts)
         pass
 
-    # TODO: Document Categories
-    # def get_document_categories(self, docid: int) -> list:
-    #     """
-    #     Generates a list of binary features indicating which of the recognized categories that the document has.
-    #     Category features should be deterministically ordered so list[0] should always correspond to the same
-    #     category. For example, if a document has one of the three categories, and that category is mapped to
-    #     index 1, then the binary feature vector would look like [0, 1, 0].
-
-    #     Args:
-    #         docid: The id of the document
-
-    #     Returns:
-    #         A list containing binary list of which recognized categories that the given document has
-    #     """
-    #     binary_features = [0] * len(self.recognized_categories)
-    #     document_categories = self.doc_category_info.get(docid, [])
-    #     for category in document_categories:
-    #         if category in self.recognized_categories:
-    #             idx = self.recognized_categories.index(category)
-    #             binary_features[idx] = 1
-    #     return binary_features
-    #     pass
-
-    # TODO: PageRank
-    # def get_pagerank_score(self, docid: int) -> float:
-    #     """
-    #     Gets the PageRank score for the given document.
-
-    #     Args:
-    #         docid: The id of the document
-
-    #     Returns:
-    #         The PageRank score
-    #     """
-    #     return self.docid_to_network_features.get(docid, {}).get('pagerank', 0)
-    #     pass
-
-    # # TODO: HITS Hub
-    # def get_hits_hub_score(self, docid: int) -> float:
-    #     """
-    #     Gets the HITS hub score for the given document.
-
-    #     Args:
-    #         docid: The id of the document
-
-    #     Returns:
-    #         The HITS hub score
-    #     """
-    #     return self.docid_to_network_features.get(docid, {}).get('hub_score', 0)
-    #     pass
-
-    # # TODO: HITS Authority
-    # def get_hits_authority_score(self, docid: int) -> float:
-    #     """
-    #     Gets the HITS authority score for the given document.
-
-    #     Args:
-    #         docid: The id of the document
-
-    #     Returns:
-    #         The HITS authority score
-    #     """
-    #     return self.docid_to_network_features.get(docid, {}).get('authority_score', 0)
-    #     pass
-
     # TODO (HW3): Cross-Encoder Score
     def get_cross_encoder_score(self, docid: int, query: str) -> float:
         """
@@ -501,7 +430,7 @@ class L2RFeatureExtractor:
     
     # CLIP score
     def get_clip_score(self, docid: int, query: str) -> list[float]:
-        print(docid)
+        # print(docid)
         return self.multimodal.compute_similarity(self.doc_image_info.get(docid, ""), [query])
     
     #Calculate TF IDF with title index of products and keywords
@@ -520,10 +449,6 @@ class L2RFeatureExtractor:
         tfidf = TF_IDF(index)
         score = tfidf.score(docid, word_counts, keyword_parts)
         return score
-
-    # TODO: Add eco-friendliness score
-
-    # TODO: Add at least one new feature to be used with your L2R model
 
     def generate_features(self, docid: int, doc_word_counts: dict[str, int],
                           title_word_counts: dict[str, int], query_parts: list[str]) -> list:
@@ -576,38 +501,24 @@ class L2RFeatureExtractor:
         # TODO: Pivoted Normalization
         feature_vector.append(self.get_pivoted_normalization_score(docid, doc_word_counts, query_parts))
 
-        # # TODO: Pagerank
-        # feature_vector.append(self.get_pagerank_score(docid))
-
-        # # TODO: HITS Hub
-        # feature_vector.append(self.get_hits_hub_score(docid))
-
-        # # TODO: HITS Authority
-        # feature_vector.append(self.get_hits_authority_score(docid))
-
         # TODO: (HW3) Cross-Encoder Score
         query_parts = [part for part in query_parts if part is not None]
         feature_vector.append(self.get_cross_encoder_score(docid, " ".join(query_parts)))
 
         # TODO: Add at least one new feature to be used with your L2R model.
-        # title_query_overlap_count = 0
-        # for title_word in title_word_counts:
-        #     if title_word in query_parts:
-        #         title_query_overlap_count += 1
-        # feature_vector.append(title_query_overlap_count / len(query_parts))
+        title_query_overlap_count = 0
+        for title_word in title_word_counts:
+            if title_word in query_parts:
+                title_query_overlap_count += 1
+        feature_vector.append(title_query_overlap_count / len(query_parts))
         
         # CLIP score
         clip_score = self.get_clip_score(docid, " ".join(query_parts))
         for c in clip_score:
             feature_vector.append(c[0])
 
-        #keyword tfidf feature
+        # keyword tfidf feature
         feature_vector.append(self.get_tf_idf_keyword(self.document_index, docid, doc_word_counts, self.keyword_dict, self.keyword_parts))
-
-        # TODO: Calculate the Document Categories features.
-        # for cate in self.get_document_categories(docid):
-        #     feature_vector.append(cate)
-        # NOTE: This should be a list of binary values indicating which categories are present.
 
         return feature_vector
 
