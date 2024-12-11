@@ -8,7 +8,8 @@ repo. The original dataset could be found via https://huggingface.co/datasets/Mc
 ## How to run
 To directly run the search algorithm or launch the search engine (Note: since we set 
 random sleep in item link checking part, it might take around 45 seconds to show the 
-results):
+results when choosing sort by relevance only; while re-sorting by relevance and 
+rating will take longer, approximately several minutes):
 
 - Modify the query in main function of `pipeline.py`, and run `python pipeline.py`, 
 to get the top results for your query
