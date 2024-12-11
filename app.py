@@ -30,10 +30,10 @@ algorithm = initialize()
 pagination_cache = {}
 timer_mgr = {}
 
-doc_data = {
-    "1": {"image": "https://example.com/image1.jpg", "ecoFriendly": "High", "price": 25.99},
-    "2": {"image": "https://example.com/image2.jpg", "ecoFriendly": "Medium", "price": 15.49},
-}
+# doc_data = {
+#     "1": {"image": "https://example.com/image1.jpg", "ecoFriendly": "High", "price": 25.99},
+#     "2": {"image": "https://example.com/image2.jpg", "ecoFriendly": "Medium", "price": 15.49},
+# }
 
 # Some global configurations
 PAGE_SIZE = 10
@@ -60,21 +60,23 @@ async def home():
 @app.post('/search')
 async def doSearch(body: QueryModel) -> APIResponse:
     request_query = body.query
-    sort_option = body.sort_option
-    response = algorithm.search(request_query, sort_option)
+    sort_by_rating = body.sort_by_rating
+    response = algorithm.search(request_query, sort_by_rating)
     global pagination_cache
     enriched_results = []
     for res in response:
-        docid = res["docid"]
-        enriched_results.append({
-            "docid": docid,
-            "title": res["title"],
-            "extract": res["text"],
-            "image": doc_data.get(docid, {}).get("image", ""),
-            "ecoFriendly": doc_data.get(docid, {}).get("ecoFriendly", "Unknown"),
-            "price": doc_data.get(docid, {}).get("price", "N/A"),
-            "avg_rating": doc_data.get(docid, {}).get("average_rating", "N/A"),
-        })
+        # docid = res["docid"]
+        enriched_results.append(res)
+        # enriched_results.append({
+        #         "docid": result[0],
+        #         "title": doc.get("title", "Unknown"),
+        #         "description": doc.get("description", "No description available"),
+        #         "score": result[1],
+        #         "price": doc.get("price", "N/A"),
+        #         "eco_friendly": self.docid_to_ecolabel.get(result[0], "Unknown"),
+        #         "image": self.docid_to_image.get(result[0], ""),
+        #         "avg_rating": doc.get("average_rating", 0),
+        #     })
     pagination_cache[request_query] = enriched_results
     pagination_cache[f'{request_query}_max_page'] = math.floor(
         len(response) / PAGE_SIZE)

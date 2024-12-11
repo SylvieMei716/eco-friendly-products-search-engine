@@ -199,8 +199,10 @@ class DatasetPreprocessor:
             # if count > 20000:
             #     break
             description = data.get('description', '')
-            sentiment = sentiment_analyzer(description[:512])  # Truncate description to fit model input size
-            data['eco_friendly'] = sentiment[0]['label'] == 'POSITIVE'
+            tokens = tokenizer(description, padding='max_length', truncation=True, max_length=512, return_tensors="pt")
+            truncated_description = tokenizer.decode(tokens['input_ids'][0], skip_special_tokens=True)
+            sentiment = sentiment_analyzer(truncated_description)[0]
+            data['eco_friendly'] = sentiment['label'] == 'POSITIVE'
             # print(data['eco_friendly'])
             updated_data.append(data)
 
@@ -219,8 +221,8 @@ def main():
         dataset_preprocessor.filter_eco_keywords(eco_keywords=ecofriendly_keywords, noneco_keywords=nonfriendly_keywords)
     if not os.path.exists('./fine_tuned_model'):
         dataset_preprocessor.fine_tune()
-    if not os.path.exists('data/sentiment_labeled.jsonl.gz'):
-        dataset_preprocessor.filter_eco_sentiment()
+    # if not os.path.exists('data/sentiment_labeled.jsonl.gz'):
+    dataset_preprocessor.filter_eco_sentiment()
         
     docid_to_ecolabel = {}
     with gzip.open('data/sentiment_labeled.jsonl.gz', mode = 'rt', newline = '') as f:

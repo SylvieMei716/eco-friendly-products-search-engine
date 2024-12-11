@@ -1,18 +1,27 @@
 # eco-friendly-products-search-engine
-### Nov 5:
-#### Updates: 
-- implemented get_possible_items.py
-- indexed dataset
-#### TODO:
-- copy & paste your homework code `document_preprocessor.py`, `indexing.py`, `ranker.py` in root folder
-- copy & paste main index in /main_index (the file is too large to push to github)
-- copy & paste `stopwords.txt`, `meta_All_Beauty.jsonl.gz`, `meta_Amazon_Fashion.jsonl.gz` to /data
-- run `python get_possible_items.py` to get annotation files (remember to replace with your own queries)
+## Introduction
+This is the GitHub repository for an eco-friendly beauty & fashion products search engine. 
 
+Due to the GitHub file size limitation, the dataset and cache files were not uploaded to this 
+repo. The original dataset could be found via https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023.
 
-- `python dataset_preprocessor.py` to get full dataset
-- `python get_annotation_files.py` to get csv files to annotate
-- `python baseline_bm25.py` to run bm25 baseline system
-- `python baseline_naive.py` to run naive system
-- `python pipeline.py` to run demo search
-- `python uvicorn app:app.py` to get search engine
+## How to run
+To directly run the search algorithm or launch the search engine:
+
+- Modify the query in main function of `pipeline.py`, and run `python pipeline.py`, 
+to get the top results for your query
+
+OR
+
+- run `python uvicorn app:app.py` to launch the search engine
+
+To start from scratch:
+
+1. `python dataset_preprocessor.py` to get full dataset
+2. `python get_annotation_files.py` to get csv files to annotate
+3. `python train_test_splitting.py` to split training and testing files from annotated files
+4. `python baseline_bm25.py` to run bm25 baseline system
+5. `python baseline_naive.py` to run naive system
+6. `python multimodal.py` to prepare the image embeddings
+7. `python pipeline.py` to run demo search
+8. `python uvicorn app:app.py` to launch search engine

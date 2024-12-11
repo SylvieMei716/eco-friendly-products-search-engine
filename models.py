@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 class QueryModel(BaseModel):
     query:str
-    sort_option: str
+    sort_by_rating: bool
 
 class SearchResponse(BaseModel):
     id: int
@@ -18,6 +18,7 @@ class SearchResponse(BaseModel):
     image: str | None  # URL to the product image
     link: str | None   # URL to the product page
     eco_friendly_tag: str | None  # Eco-friendliness tag
+    price_tag: float | str # price or "#N/A"
 
 class PaginationModel(BaseModel):
     prev: str

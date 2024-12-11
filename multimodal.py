@@ -16,6 +16,7 @@ import os
 import json
 import pickle
 from tqdm import tqdm
+from PIL import UnidentifiedImageError
 
 class MultimodalSearch:
     def __init__(self, model_name: str = 'clip-ViT-B-32', embeddings_file: str='./__pycache__/image_embeddings.pkl') -> None:
@@ -44,8 +45,8 @@ class MultimodalSearch:
         try:
             response = requests.get(url, stream=True)
             response.raise_for_status()
-            return Image.open(response.raw)
-        except requests.exceptions.RequestException as e:
+            return Image.open(response.raw).convert("RGB")  # Ensure image is in RGB mode
+        except Exception as e:
             print(f"Error fetching image: {e}")
             return None
 
@@ -96,8 +97,8 @@ class MultimodalSearch:
         if np.array_equal(image_emb, np.array([0.0])):
         # If the image embedding is invalid, return a list of zeros for each text description
             image_emb = np.zeros_like(text_emb)
-            print(image_emb)
-            print(len(text_emb))
+            # print(image_emb)
+            # print(len(text_emb))
         
         cos_scores = util.cos_sim(image_emb, text_emb)
         return cos_scores.tolist()
@@ -117,7 +118,7 @@ class MultimodalSearch:
         """
         if os.path.exists(self.embeddings_file):
             # with open(self.embeddings_file, 'r') as f:
-            return pickle.load(open(self.embeddings_file, 'r'))
+            return pickle.load(open(self.embeddings_file, 'rb'))
         return {}
     
     def precompute_embeddings(self, image_urls: list[str]) -> None:
@@ -128,6 +129,7 @@ class MultimodalSearch:
         - image_urls (list[str]): A list of image URLs to encode.
         """
         processed_urls = set(self.image_embeddings.keys())
+        print(f'processed images number: {len(processed_urls)}')
 
         remaining_urls = [url for url in image_urls if url not in processed_urls]
 
@@ -142,6 +144,7 @@ def main():
     DOCID_TO_IMAGE_PATH = CACHE_PATH + 'docid_to_image.pkl'
     docid_to_image = pickle.load(open(DOCID_TO_IMAGE_PATH, 'rb'))
     image_urls = [url for docid, url in docid_to_image.items()]
+    print(f'total images number: {len(image_urls)}')
     clip = MultimodalSearch()
     clip.precompute_embeddings(image_urls)
 

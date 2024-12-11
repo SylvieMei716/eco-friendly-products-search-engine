@@ -50,22 +50,28 @@ class EcoSearchEngine:
         self.index_documents()
         
         self.title_index = BasicInvertedIndex()
-        self.dataset = self.load_dataset(DATASET_PATH, max_docs)
         self.index_titles()
 
         # Initialize BM25 as the default ranker
+        print("Initializing BM25 Ranker...")
         self.bm25_ranker = BM25(self.index)
         self.ranker = Ranker(self.index, self.tokenizer, self.stopwords, self.bm25_ranker)
 
         # Multimodal Search
+        print("Initializing multimodal object...")
         self.multimodal = None
         if multimodal:
             self.multimodal = MultimodalSearch()
             
+        print("Loading docid to image info...")
         self.docid_to_image = pickle.load(open(DOCID_TO_IMAGE_PATH, 'rb'))
+        print("Loading docid to price info...")
         self.docid_to_price = pickle.load(open(DOCID_TO_PRICE_PATH, 'rb'))
+        print("Loading docid to rating info...")
         self.docid_to_rating = pickle.load(open(DOCID_TO_RATING_PATH, 'rb'))
+        print("loading docid to ecolabel info...")
         self.docid_to_ecolabel = pickle.load(open(DOCID_TO_ECOLABEL_PATH, 'rb'))
+        print("Loading docid to link info")
         self.docid_to_link = pickle.load(open(DOCID_TO_LINK_PATH, 'rb'))
         
         with open("data/training_set.csv", 'r', encoding='cp850') as f:
@@ -192,34 +198,19 @@ class EcoSearchEngine:
         
         return enriched_results
 
-    # def tag_eco_friendly(self, doc):
-    #     """Tag products as eco-friendly or not based on keywords."""
-    #     eco_keywords = ['sustainable', 'organic', 'biodegradable', 'recyclable', 'compostable']
-    #     non_eco_keywords = ['non-recyclable', 'disposable', 'single-use']
-    #     title = doc.get("title", "").lower()
-    #     description = doc.get("description", "").lower()
-        
-    #     for keyword in eco_keywords:
-    #         if keyword in title or keyword in description:
-    #             return "Eco-Friendly"
-    #     for keyword in non_eco_keywords:
-    #         if keyword in title or keyword in description:
-    #             return "Not Eco-Friendly"
-    #     return "Uncertain"
-
     def load_or_train_l2r(self):
         """Load or train the Learning-to-Rank model."""
         model_path = os.path.join(CACHE_PATH, 'l2r.pkl')
-        if os.path.exists(model_path):
-            print("Loading pre-trained L2R model...")
-            with open(model_path, 'rb') as f:
-                self.l2r_ranker = pickle.load(f)
-        else:
-            print("Training L2R model...")
-            training_data = "data/training_set.csv"  # Replace with actual training file path
-            self.l2r_ranker.train(training_data)
-            with open(model_path, 'wb') as f:
-                pickle.dump(self.l2r_ranker, f)
+        # if os.path.exists(model_path):
+        #     print("Loading pre-trained L2R model...")
+        #     with open(model_path, 'rb') as f:
+        #         self.l2r_ranker = pickle.load(f)
+        # else:
+        print("Training L2R model...")
+        training_data = "data/training_set.csv"  # Replace with actual training file path
+        self.l2r_ranker.train(training_data)
+        with open(model_path, 'wb') as f:
+            pickle.dump(self.l2r_ranker, f)
 
 # Initialize function for app.py
 def initialize():
