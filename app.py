@@ -60,8 +60,8 @@ async def home():
 @app.post('/search')
 async def doSearch(body: QueryModel) -> APIResponse:
     request_query = body.query
-    sort_by_rating = body.sort_by_rating
-    response = algorithm.search(request_query, sort_by_rating)
+    sort_option = body.sort_option
+    response = algorithm.search(request_query, sort_option)
     global pagination_cache
     enriched_results = []
     for res in response:

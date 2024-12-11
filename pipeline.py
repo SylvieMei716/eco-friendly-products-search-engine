@@ -30,6 +30,8 @@ DOCID_TO_PRICE_PATH = CACHE_PATH + 'docid_to_price.pkl'
 DOCID_TO_RATING_PATH = CACHE_PATH + 'docid_to_rating.pkl'
 DOCID_TO_ECOLABEL_PATH = CACHE_PATH + 'docid_to_ecolabel.pkl'
 DOCID_TO_LINK_PATH = CACHE_PATH + 'docid_to_link.pkl'
+DOCID_TO_TITLE_PATH = CACHE_PATH + 'docid_to_title.pkl'
+DOCID_TO_DESC_PATH = CACHE_PATH + 'docid_to_desc.pkl'
 TITLE_INDEX = 'title_index'
 
 class EcoSearchEngine:
@@ -73,6 +75,10 @@ class EcoSearchEngine:
         self.docid_to_ecolabel = pickle.load(open(DOCID_TO_ECOLABEL_PATH, 'rb'))
         print("Loading docid to link info")
         self.docid_to_link = pickle.load(open(DOCID_TO_LINK_PATH, 'rb'))
+        print("Loading docid to title info...")
+        self.docid_to_title = pickle.load(open(DOCID_TO_TITLE_PATH, 'rb'))
+        print("Loading docid to description info...")
+        self.docid_to_desc = pickle.load(open(DOCID_TO_DESC_PATH, 'rb'))
         
         with open("data/training_set.csv", 'r', encoding='cp850') as f:
             data = csv.reader(f)
@@ -158,30 +164,31 @@ class EcoSearchEngine:
         else:
             return False
 
-    def search(self, query, sort_by_rating=False):
+    def search(self, query, sort_option="relevance"):
         """Perform a search query."""
         print(f"Searching for: {query}")
         tokens = self.tokenizer.tokenize(query)
         filtered_tokens = [t for t in tokens if t not in self.stopwords]
-        results = self.ranker.query(" ".join(filtered_tokens), self.docid_to_rating)
+        results = self.ranker.query(" ".join(filtered_tokens))
 
         # Enrich results with metadata
         enriched_results = []
         for result in results:
-            doc = next((d for d in self.dataset if d['docid'] == result[0]), {})
+            # doc = next((d for d in self.dataset if d['docid'] == result[0]), {})
             enriched_results.append({
                 "docid": result[0],
-                "title": doc.get("title", "Unknown"),
-                "description": doc.get("description", "No description available"),
+                "title": self.docid_to_title.get(result[0], "Unknown"),
+                "description": self.docid_to_desc.get(result[0], "No description available"),
                 "score": result[1],
-                "price": doc.get("price", "N/A"),
-                "eco_friendly": self.docid_to_ecolabel.get(result[0], "Unknown"),
+                "price": self.docid_to_price.get(result[0], "N/A"),
+                "eco_friendly": str(self.docid_to_ecolabel.get(result[0], "Unknown")),
                 "image": self.docid_to_image.get(result[0], ""),
-                "avg_rating": doc.get("average_rating", 0),
+                "avg_rating": self.docid_to_rating.get(result[0], "N/A"),
+                "link": self.docid_to_link.get(result[0], "")
             })
 
         # Sort results by relevance and rating if requested
-        if sort_by_rating:
+        if sort_option != "relevance":
             RATING_WEIGHT = 0.3
             enriched_results = sorted(enriched_results, key=lambda x: x["score"]*(1-RATING_WEIGHT) + x["avg_rating"]*0.1*RATING_WEIGHT, reverse=True)
         
@@ -214,13 +221,13 @@ class EcoSearchEngine:
 
 # Initialize function for app.py
 def initialize():
-    return EcoSearchEngine(max_docs=1000, use_l2r=True, multimodal=True)
+    return EcoSearchEngine(max_docs=-1, use_l2r=True, multimodal=True)
 
 
 def main():
     search_obj = EcoSearchEngine(max_docs=-1, use_l2r=True, multimodal=True)
     query = "women maxi dress"
-    results = search_obj.search(query, sort_by_rating=False)
+    results = search_obj.search(query, sort_option="relevance")
     print(results[:5])
 
 

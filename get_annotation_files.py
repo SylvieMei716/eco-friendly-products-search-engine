@@ -1,8 +1,9 @@
 """
-This file is to get most relevant 50-200 items to each query by 
+This file is to get most relevant 50 items to each query by 
 BM25 (and annotate them afterwards).
 
 Date: Nov 2, 2024
+Author: Sylvie Mei
 """
 import gzip
 import json

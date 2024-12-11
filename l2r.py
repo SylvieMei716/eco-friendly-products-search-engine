@@ -176,7 +176,7 @@ class L2RRanker:
         pickle.dump(self.model, open(filename, 'wb'))
         return None
 
-    def query(self, query: str, doc_rating_info: dict[int, float], pseudofeedback_num_docs=0, pseudofeedback_alpha=0.8,
+    def query(self, query: str, pseudofeedback_num_docs=0, pseudofeedback_alpha=0.8,
               pseudofeedback_beta=0.2, user_id=None) -> list[tuple[int, float]]:
         """
         Retrieves potentially-relevant documents, constructs feature vectors for each query-document pair,
@@ -230,7 +230,7 @@ class L2RRanker:
         #       This ordering determines which documents we will try to *re-rank* using our L2R model
         # TODO: (HW4) support pseudofeedback arguments for the initial ranking
         # bm25 = self.scorer
-        relevant_docs = self.scorer.query(query, doc_rating_info, pseudofeedback_num_docs, pseudofeedback_alpha, pseudofeedback_beta)
+        relevant_docs = self.scorer.query(query, pseudofeedback_num_docs, pseudofeedback_alpha, pseudofeedback_beta)
         
         # vector_ranker = self.scorer
         # relevant_docs = vector_ranker.query(query, pseudofeedback_num_docs, pseudofeedback_alpha, pseudofeedback_beta)
@@ -241,13 +241,13 @@ class L2RRanker:
 
         # TODO: Construct the feature vectors for each query-document pair in the top 100
         X_top_100 = []
-        for top_doc_id, top_doc_score, top_doc_rating in top_100_docs:
+        for top_doc_id, top_doc_score, in top_100_docs:
             feature_vector = self.feature_extractor.generate_features(top_doc_id, doc_word_counts, title_word_counts, query_parts)
             X_top_100.append(feature_vector)
 
         # TODO: Use your L2R model to rank these top 100 documents
         ranked_top_100_scores = self.model.predict(X_top_100)
-        ranked_top_100 = [(doc_id, score, price) for (doc_id, _, price), score in zip(top_100_docs, ranked_top_100_scores)]
+        ranked_top_100 = [(doc_id, score) for (doc_id, _), score in zip(top_100_docs, ranked_top_100_scores)]
         
         # TODO: Sort posting_lists based on scores
         ranked_top_100 = sorted(ranked_top_100, key=lambda x:x[1], reverse=True)

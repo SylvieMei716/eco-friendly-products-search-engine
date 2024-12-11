@@ -1,4 +1,5 @@
 <!--Author: Prithvijit Dasgupta-->
+<!--Modified by: Sylvie Mei-->
 <html>
 
 <head>
@@ -204,9 +205,11 @@
         return {
             docid: dict.docid,
             title: dict.title,
-            url: `https://en.wikipedia.org/wiki/?curid=${dict.docid}`,
-            text: dict.extract,
-            id: dict.id
+            url: dict.link,
+            text: dict.description,
+            image: dict.image || "default_image.jpg", // Provide a default image
+            eco_friendly: dict.eco_friendly || "Unknown",    // Default eco-friendly tag
+            price: dict.price || "N/A"
         }
     }
     function doSearch(url, method) {
@@ -224,7 +227,8 @@
         let results = fetch(url, {
             method,
             body: method == 'POST' ? JSON.stringify({
-                'query': query
+                'query': query,
+                'sort_option': document.getElementById('sort-option').value // Pass sort option
             }) : null,
             headers: {
                 'Content-Type': 'application/json'
@@ -245,10 +249,10 @@
                         liElement.classList.add('result-item')
 
                         const imageNode = document.createElement('img')
-                        imageNode.setAttribute('src', item.image_url)
+                        imageNode.setAttribute('src', item.image)
                         imageNode.setAttribute('alt', 'Product Image')
                         imageNode.style.width = '100px'
-                        imageNode.style.height = 'auto'
+                        imageNode.style.height = '100px'
 
                         const detailsDiv = document.createElement('div')
                         detailsDiv.classList.add('result-details')

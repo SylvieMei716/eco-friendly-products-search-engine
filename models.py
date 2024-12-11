@@ -1,5 +1,5 @@
 '''
-Edited by Lindsey Dye, Sylvie Mei
+Edited by Sylvie Mei
 
 Author: Prithvijit Dasgupta
 
@@ -9,16 +9,17 @@ from pydantic import BaseModel
 
 class QueryModel(BaseModel):
     query:str
-    sort_by_rating: bool
+    sort_option: str = "relevance"
 
 class SearchResponse(BaseModel):
-    id: int
     docid: int
-    score: float
-    image: str | None  # URL to the product image
-    link: str | None   # URL to the product page
-    eco_friendly_tag: str | None  # Eco-friendliness tag
-    price_tag: float | str # price or "#N/A"
+    link: str
+    eco_friendly: str | None
+    price: float | None
+    title: str
+    description: str
+    image: str
+    avg_rating: float | None
 
 class PaginationModel(BaseModel):
     prev: str

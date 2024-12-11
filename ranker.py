@@ -33,7 +33,7 @@ class Ranker:
         self.stopwords = stopwords
         self.raw_text_dict = raw_text_dict
 
-    def query(self, query: str, doc_rating_info: dict[int, float], 
+    def query(self, query: str, 
               pseudofeedback_num_docs=0, pseudofeedback_alpha=0.8,
               pseudofeedback_beta=0.2) -> list[tuple[int, float]]:
         """
@@ -77,8 +77,7 @@ class Ranker:
         initial_scores = []
         for doc_id in possible_docs:
             score = self.scorer.score(doc_id, doc_word_counts[doc_id], query_word_counts)
-            rating = doc_rating_info.get(doc_id, 0)
-            initial_scores.append((doc_id, score, rating))
+            initial_scores.append((doc_id, score))
             
         initial_scores = sorted(initial_scores, key=lambda x:x[1],reverse=True)
         
@@ -122,8 +121,7 @@ class Ranker:
             doc_scores = []
             for doc_id in possible_docs:
                 score = self.scorer.score(doc_id, doc_word_counts[doc_id], adjusted_query_vector)
-                rating = doc_rating_info.get(doc_id, 0)
-                doc_scores.append((doc_id, score, rating))
+                doc_scores.append((doc_id, score))
             doc_scores = sorted(doc_scores, key=lambda x: x[1], reverse=True)
             # print("returning updated scores", doc_scores[:5])
                 

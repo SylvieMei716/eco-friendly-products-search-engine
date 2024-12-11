@@ -95,7 +95,7 @@ def f1_score(binary_relevances, actual_relevances, relevant_docs):
     Returns:
         F1 score"""
     # Calculate recall
-    recall_docs = sum(1 for doc,_,_ in actual_relevances if doc in relevant_docs)
+    recall_docs = sum(1 for doc,_ in actual_relevances if doc in relevant_docs)
     if len(relevant_docs)!=0:
         recall = recall_docs / len(relevant_docs)
     else:
@@ -149,11 +149,11 @@ def run_relevance_tests(relevance_data_filename: str, ranker) -> dict[str, float
         docid_to_rel = {docid: rel for docid, rel in zip(docs, rels)}
         
         
-        ranked_docs = ranker.query(query,docid_to_price)[:cut_off]
+        ranked_docs = ranker.query(query)[:cut_off]
         
-        binary_rels = [1 if docid_to_rel.get(doc, 0) >= 4 else 0 for doc,_,_ in ranked_docs]
+        binary_rels = [1 if docid_to_rel.get(doc, 0) >= 4 else 0 for doc,_ in ranked_docs]
         
-        actual_rels = [docid_to_rel.get(doc, 0) for doc,_,_ in ranked_docs]
+        actual_rels = [docid_to_rel.get(doc, 0) for doc,_ in ranked_docs]
         
         #Making a list of relevant docs for given query to calculate recall
         relevant_docs_ = []

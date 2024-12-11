@@ -6,7 +6,9 @@ Due to the GitHub file size limitation, the dataset and cache files were not upl
 repo. The original dataset could be found via https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023.
 
 ## How to run
-To directly run the search algorithm or launch the search engine:
+To directly run the search algorithm or launch the search engine (Note: since we set 
+random sleep in item link checking part, it might take around 45 seconds to show the 
+results):
 
 - Modify the query in main function of `pipeline.py`, and run `python pipeline.py`, 
 to get the top results for your query
