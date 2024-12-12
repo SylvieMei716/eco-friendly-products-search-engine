@@ -242,27 +242,6 @@ class BasicInvertedIndex(InvertedIndex):
                 self.statistics['mean_document_length'] = (
                     self.statistics['total_token_count'] / self.statistics['number_of_documents']
                 )
-        """token_count = len(tokens)
-
-        if docid not in self.document_metadata:
-            # Intern strings to save memory for repeated tokens
-            interned_tokens = tuple(intern(token) for token in tokens)
-
-            # Store interned tokens
-            self.document_metadata[docid] = (0, token_count, interned_tokens)
-            self.statistics['total_token_count'] += token_count
-            self.statistics['number_of_documents'] += 1
-
-            # Update unique tokens using interned version
-            new_unique_tokens = set(interned_tokens) - self.statistics['unique_tokens']
-            self.statistics['unique_tokens'].update(new_unique_tokens)
-            self.statistics['unique_token_count'] += len(new_unique_tokens)
-
-            # Calculate mean document length lazily
-            if self.statistics['number_of_documents'] > 0:
-                self.statistics['mean_document_length'] = (
-                    self.statistics['total_token_count'] / self.statistics['number_of_documents']
-                )"""
 
         return None
     
