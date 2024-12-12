@@ -21,5 +21,5 @@ df_final.to_csv('all_queries.csv', index=False)
 #Splitting data into train and test sets with a 70:30 ratio
 data = pd.read_csv('./all_queries.csv')
 train, test = train_test_split(data, test_size=0.3)
-train.to_csv('./ProjTrain.csv', index=False)
-test.to_csv('./ProjTest.csv', index=False)
+train.to_csv('./training_set.csv', index=False)
+test.to_csv('./testing_set.csv', index=False)
